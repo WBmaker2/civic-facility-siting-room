@@ -17,6 +17,9 @@ import { SitingOpinionForm } from '../features/opinion/SitingOpinionForm';
 import { OpinionSummary } from '../features/opinion/OpinionSummary';
 import { getGuidedAction } from '../navigation/guidedAction';
 import { GuidedActionButton } from '../navigation/GuidedActionButton';
+import { UpdateHistoryButton } from '../updates/UpdateHistoryButton';
+// @ts-expect-error Vite resolves CSS side-effect imports in the test runtime.
+import './app.css';
 
 function StagePlaceholder() {
   const { state } = useSession();
@@ -112,12 +115,13 @@ function SessionShell() {
                   : <StagePlaceholder />;
   const opinionAction = state.proposals.length === 2 && state.stage === 'resident-view';
   return (
-    <main>
+    <main className="app-shell">
       <h1>도시 기능 입지 심의실</h1>
       <p role="note">{MODEL_LIMIT_NOTICE}</p>
       <ProgressStepper currentStage={state.stage} />
       {stage}
       {opinionAction && <GuidedActionButton actionId="write-opinion" currentAction={currentAction} disabled={!selectStageGate(state, 'resident-view')} onClick={() => { dispatch({ type: 'set-opinion', opinion: { ...state.opinion, priorityId: state.priorityId } }); dispatch({ type: 'go-to-stage', stage: 'opinion' }); }}>의견서 작성</GuidedActionButton>}
+      <UpdateHistoryButton />
     </main>
   );
 }
