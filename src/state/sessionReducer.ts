@@ -78,14 +78,27 @@ const allowedSlotIds = (facilityKinds: readonly string[]): Set<string> => {
   }));
 };
 
+const slotFacilityKinds = (facilityKinds: readonly string[]): Map<string, string> => {
+  const counts = new Map<string, number>();
+  const result = new Map<string, string>();
+  for (const facilityKind of facilityKinds) {
+    const next = (counts.get(facilityKind) ?? 0) + 1;
+    counts.set(facilityKind, next);
+    result.set(`${facilityKind}-${next}`, facilityKind);
+  }
+  return result;
+};
+
 export const isPlacementComplete = (state: SessionState): boolean => {
   const mission = missionForState(state); const city = cityForId(state.cityId);
-  if (mission === undefined || city === undefined || mission.cityId !== city.id || state.placements.length !== mission.facilityKinds.length) return false;
+  if (mission === undefined || city === undefined || mission.cityId !== city.id || !Array.isArray(state.placements) || state.placements.length !== mission.facilityKinds.length) return false;
   const allowedSlots = allowedSlotIds(mission.facilityKinds);
+  const expectedSlotKinds = slotFacilityKinds(mission.facilityKinds);
   const candidateIds = new Set<string>(); const slotIds = new Set<string>(); const kindCounts = new Map<string, number>(); let totalCost = 0;
   for (const placement of state.placements) {
+    if (placement === null || typeof placement !== 'object' || typeof placement.slotId !== 'string' || typeof placement.facilityKind !== 'string' || typeof placement.candidateId !== 'string' || placement.slotId.trim().length === 0 || !allowedSlots.has(placement.slotId) || UNSAFE_SLOT_IDS.has(placement.slotId)) return false;
     const candidate = city.candidates.find((item) => item.id === placement.candidateId);
-    if (placement.slotId.trim().length === 0 || !allowedSlots.has(placement.slotId) || UNSAFE_SLOT_IDS.has(placement.slotId) || candidate === undefined || slotIds.has(placement.slotId) || candidateIds.has(placement.candidateId) || !mission.facilityKinds.includes(placement.facilityKind)) return false;
+    if (candidate === undefined || slotIds.has(placement.slotId) || candidateIds.has(placement.candidateId) || !mission.facilityKinds.includes(placement.facilityKind) || expectedSlotKinds.get(placement.slotId) !== placement.facilityKind) return false;
     slotIds.add(placement.slotId); candidateIds.add(placement.candidateId); kindCounts.set(placement.facilityKind, (kindCounts.get(placement.facilityKind) ?? 0) + 1); totalCost += candidate.costTokens;
   }
   const expectedKinds = new Map<string, number>(); for (const kind of mission.facilityKinds) expectedKinds.set(kind, (expectedKinds.get(kind) ?? 0) + 1);
@@ -201,18 +214,21 @@ export const selectCanAdvance = (state: SessionState): boolean => selectStageGat
 const resetAfterPlacementChange = (state: SessionState): SessionState => ({ ...state, stage: indexOfStage(state.stage) > indexOfStage('placement') ? 'placement' : state.stage, analysis: null, evidence: { ...copyEvidence(state.evidence), inspectedMetricIds: [], selectedUnderservedZoneIds: [], comparedProposalIds: [] } });
 const validPartialPlacements = (state: SessionState, placements: readonly FacilityPlacement[]): boolean => {
   const mission = missionForState(state); const city = cityForId(state.cityId);
-  if (mission === undefined || city === undefined || placements.length > mission.facilityKinds.length) return false;
+  if (mission === undefined || city === undefined || !Array.isArray(placements) || placements.length > mission.facilityKinds.length) return false;
   const allowedSlots = allowedSlotIds(mission.facilityKinds);
+  const expectedSlotKinds = slotFacilityKinds(mission.facilityKinds);
   const candidateIds = new Set<string>(); const slotIds = new Set<string>(); const kindCounts = new Map<string, number>();
   for (const placement of placements) {
-    if (UNSAFE_SLOT_IDS.has(placement.slotId) || !allowedSlots.has(placement.slotId) || slotIds.has(placement.slotId) || candidateIds.has(placement.candidateId)) return false;
+    if (placement === null || typeof placement !== 'object' || typeof placement.slotId !== 'string' || typeof placement.facilityKind !== 'string' || typeof placement.candidateId !== 'string') return false;
+    if (UNSAFE_SLOT_IDS.has(placement.slotId) || !allowedSlots.has(placement.slotId) || slotIds.has(placement.slotId) || candidateIds.has(placement.candidateId) || expectedSlotKinds.get(placement.slotId) !== placement.facilityKind) return false;
     if (!mission.facilityKinds.includes(placement.facilityKind) || city.candidates.every((candidate) => candidate.id !== placement.candidateId)) return false;
     const count = (kindCounts.get(placement.facilityKind) ?? 0) + 1;
     const expectedCount = mission.facilityKinds.filter((kind) => kind === placement.facilityKind).length;
     if (count > expectedCount) return false;
     slotIds.add(placement.slotId); candidateIds.add(placement.candidateId); kindCounts.set(placement.facilityKind, count);
   }
-  return true;
+  const totalCost = placements.reduce((total, placement) => total + (city.candidates.find((candidate) => candidate.id === placement.candidateId)?.costTokens ?? Number.POSITIVE_INFINITY), 0);
+  return totalCost <= mission.budgetTokens;
 };
 const validZoneAction = (state: SessionState, zoneId: string): boolean => {
   const city = cityForId(state.cityId);
@@ -234,7 +250,8 @@ export function sessionReducer(state: SessionState, action: SessionAction): Sess
     }
     case 'select-candidate': return state.selectedCandidateId === action.candidateId ? state : { ...state, selectedCandidateId: action.candidateId };
     case 'place-facility': {
-      const placement = copyPlacement(action.placement); const index = state.placements.findIndex((item) => item.slotId === placement.slotId); const existing = index < 0 ? undefined : state.placements[index];
+      if (!Array.isArray(state.placements)) return state;
+      const placement = copyPlacement(action.placement); const index = state.placements.findIndex((item) => item !== null && typeof item === 'object' && item.slotId === placement.slotId); const existing = index < 0 ? undefined : state.placements[index];
       const placements = [...state.placements]; if (index < 0) placements.push(placement); else placements[index] = placement;
       if (!validPartialPlacements(state, placements)) return state;
       if (existing !== undefined && existing.facilityKind === placement.facilityKind && existing.candidateId === placement.candidateId) return state;

@@ -97,3 +97,9 @@ fieldset input { vertical-align: middle; margin-right: var(--space-2); }
 .candidate-choice { display: flex; align-items: center; gap: var(--space-2); min-width: 12rem; }
 .candidate-choice input { flex: 0 0 44px; }
 .table-risk { display: block; min-width: 12rem; }
+.candidate-card { display: flex; align-items: flex-start; gap: var(--space-2); margin: var(--space-3) 0; padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius); }
+.candidate-card input { flex: 0 0 44px; margin-top: var(--space-1); }
+.candidate-card-content { display: grid; gap: var(--space-1); }
+.candidate-card-content > span, .placement-slot p { color: var(--color-muted); }
+.placement-slots { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); }
+.placement-slot { margin: 0; }

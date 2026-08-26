@@ -256,10 +256,36 @@ describe('sessionReducer', () => {
     expect(sessionReducer(state, { type: 'place-facility', placement: { ...library, slotId: '__proto__' } })).toBe(state);
     expect(sessionReducer(state, { type: 'place-facility', placement: { ...library, slotId: 'unknown-1' } })).toBe(state);
     state = sessionReducer(state, { type: 'place-facility', placement: library });
-    expect(sessionReducer(state, { type: 'place-facility', placement: { ...health, slotId: 'library-1', candidateId: 'maru-d3' } }).placements).toEqual([{ ...health, slotId: 'library-1' }]);
+    expect(sessionReducer(state, { type: 'place-facility', placement: { ...health, slotId: 'library-1', candidateId: 'maru-d3' } })).toBe(state);
     state = sessionReducer(state, { type: 'place-facility', placement: health });
     expect(sessionReducer(state, { type: 'place-facility', placement: { ...health, slotId: 'health-support-2' } })).toBe(state);
     expect(sessionReducer(state, { type: 'place-facility', placement: { ...library, candidateId: 'maru-d3' } })).toBe(state);
+  });
+
+  it('preserves state identity and fresh analysis when a placement would exceed budget', () => {
+    let state = createInitialSession();
+    state = sessionReducer(state, { type: 'select-mission', missionId: 'combined-review' });
+    state = sessionReducer(state, { type: 'select-priority', priorityId: 'cost' });
+    state = sessionReducer(state, { type: 'toggle-layer', layerId: 'population' });
+    state = sessionReducer(state, { type: 'toggle-layer', layerId: 'roads' });
+    state = sessionReducer(state, { type: 'go-to-stage', stage: 'data-room' });
+    state = sessionReducer(state, { type: 'go-to-stage', stage: 'placement' });
+    state = sessionReducer(state, { type: 'place-facility', placement: { slotId: 'library-1', facilityKind: 'library', candidateId: 'maru-d3' } });
+    state = sessionReducer(state, { type: 'place-facility', placement: { slotId: 'health-support-1', facilityKind: 'health-support', candidateId: 'maru-c2' } });
+    const analysis = analyzePlacement(CITIES.maru, MISSIONS['combined-review'], state.placements);
+    state = sessionReducer(state, { type: 'store-analysis', analysis });
+    const rejected = sessionReducer(state, { type: 'place-facility', placement: { slotId: 'health-support-1', facilityKind: 'health-support', candidateId: 'maru-e1-premium' } });
+    expect(rejected).toBe(state);
+    expect(rejected.analysis).toBe(state.analysis);
+  });
+
+  it('fails closed for malformed placement input without throwing', () => {
+    const state = atPlacement();
+    const malformed = sessionReducer(state, {
+      type: 'place-facility',
+      placement: { slotId: 'library-1', facilityKind: 'library', candidateId: 'not-a-candidate' },
+    });
+    expect(malformed).toBe(state);
   });
 
   it('only selects an underserved zone present in a fresh analysis row', () => {

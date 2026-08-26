@@ -4,6 +4,7 @@ import { STAGE_LABELS } from '../state/sessionTypes';
 import { MODEL_LIMIT_NOTICE } from '../content/learnerCopy';
 import { ReviewIntake } from '../features/intake/ReviewIntake';
 import { CityDataRoom } from '../features/city-data/CityDataRoom';
+import { FacilityPlacementPanel } from '../features/placement/FacilityPlacementPanel';
 
 function StagePlaceholder() {
   const { state } = useSession();
@@ -20,8 +21,10 @@ function SessionShell() {
   const { state } = useSession();
   const stage = state.stage === 'intake'
     ? <ReviewIntake />
-    : state.stage === 'data-room'
-      ? <CityDataRoom />
+      : state.stage === 'data-room'
+        ? <CityDataRoom />
+        : state.stage === 'placement'
+          ? <FacilityPlacementPanel />
       : <StagePlaceholder />;
   return (
     <main>
