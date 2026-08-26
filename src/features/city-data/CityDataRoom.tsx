@@ -1,7 +1,6 @@
-import { CITIES } from '../../domain/cities';
 import type { DataLayerId } from '../../domain/types';
 import { PRIVACY_NOTICE } from '../../content/learnerCopy';
-import { hasValidIntakeContext } from '../../state/sessionReducer';
+import { cityForId, hasValidIntakeContext } from '../../state/sessionReducer';
 import { useSession } from '../../state/SessionProvider';
 import { LayerLegend } from './LayerLegend';
 
@@ -15,7 +14,7 @@ const LAYERS: ReadonlyArray<{ id: DataLayerId; label: string; prompt: string }> 
 
 export function CityDataRoom() {
   const { state, dispatch } = useSession();
-  const city = state.cityId === null ? undefined : CITIES[state.cityId];
+  const city = cityForId(state.cityId);
   const reviewedCount = new Set(state.evidence.reviewedLayerIds).size;
   const validReviewContext = hasValidIntakeContext(state);
   const canConfirm = validReviewContext && reviewedCount >= 2;

@@ -7,6 +7,7 @@ import { analyzePlacement } from '../engine/analyzePlacement';
 import type { FacilityPlacement, PlacementAnalysis, ProposalSnapshot } from '../domain/types';
 import {
   createInitialSession,
+  hasValidIntakeContext,
   selectCanAdvance,
   selectOpinionReady,
   sessionReducer,
@@ -132,6 +133,20 @@ describe('sessionReducer', () => {
 
     expect(sessionReducer(invalidDataRoom, { type: 'go-to-stage', stage: 'placement' })).toBe(invalidDataRoom);
     expect(selectCanAdvance(invalidDataRoom)).toBe(false);
+  });
+
+  it('rejects inherited registry identifiers in context, transitions, and mission selection', () => {
+    const inheritedIds = ['__proto__', 'constructor', 'toString'];
+    for (const identifier of inheritedIds) {
+      const invalidMission = { ...atDataRoom(), missionId: identifier as SessionState['missionId'] };
+      const invalidCity = { ...atDataRoom(), cityId: identifier as SessionState['cityId'] };
+      expect(hasValidIntakeContext(invalidMission)).toBe(false);
+      expect(hasValidIntakeContext(invalidCity)).toBe(false);
+      expect(sessionReducer(invalidMission, { type: 'go-to-stage', stage: 'placement' })).toBe(invalidMission);
+      expect(sessionReducer(invalidCity, { type: 'go-to-stage', stage: 'placement' })).toBe(invalidCity);
+      const initial = createInitialSession();
+      expect(sessionReducer(initial, { type: 'select-mission', missionId: identifier as 'bookmaru-library' })).toBe(initial);
+    }
   });
 
   it('toggles active layers but accumulates unique reviewed layers', () => {

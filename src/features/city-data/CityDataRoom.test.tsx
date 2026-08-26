@@ -1,9 +1,10 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
+import { useEffect } from 'react';
 import { App } from '../../app/App';
 import { CityDataRoom } from './CityDataRoom';
-import { SessionProvider } from '../../state/SessionProvider';
+import { SessionProvider, useSession } from '../../state/SessionProvider';
 
 async function renderSessionAtDataRoom() {
   const user = userEvent.setup();
@@ -89,5 +90,21 @@ describe('CityDataRoom', () => {
     await user.click(screen.getByRole('checkbox', { name: '인구' }));
     await user.click(screen.getByRole('checkbox', { name: '도로·이동 단위' }));
     expect(confirm).toBeDisabled();
+  });
+
+  it('fails closed for inherited mission identifiers without showing an undefined city', async () => {
+    function InvalidContextHarness() {
+      const { dispatch } = useSession();
+      useEffect(() => {
+        dispatch({ type: 'select-mission', missionId: '__proto__' as 'bookmaru-library' });
+      }, [dispatch]);
+      return <CityDataRoom />;
+    }
+
+    render(<SessionProvider><InvalidContextHarness /></SessionProvider>);
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: '자료층 확인' })).toBeDisabled();
+    expect(screen.getByRole('alert')).toHaveTextContent(/미션.*배정 도시.*우선순위/);
+    expect(screen.queryByText(/undefined의 가상 자료/)).not.toBeInTheDocument();
   });
 });

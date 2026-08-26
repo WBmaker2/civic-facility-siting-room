@@ -57,11 +57,14 @@ const samePlacements = (left: readonly FacilityPlacement[], right: readonly Faci
 const indexOfStage = (stage: StageId): number => STAGE_ORDER.indexOf(stage);
 const isLayer = (layerId: DataLayerId): boolean => DATA_LAYERS.includes(layerId);
 const isMetric = (metricId: LearningEvidence['inspectedMetricIds'][number]): boolean => METRICS.includes(metricId);
-const missionForState = (state: SessionState) => state.missionId === null ? undefined : MISSIONS[state.missionId];
+const registryHasOwn = (registry: object, key: unknown): key is string => typeof key === 'string' && Object.prototype.hasOwnProperty.call(registry, key);
+export const missionForId = (missionId: unknown) => registryHasOwn(MISSIONS, missionId) ? MISSIONS[missionId as keyof typeof MISSIONS] : undefined;
+export const cityForId = (cityId: unknown) => registryHasOwn(CITIES, cityId) ? CITIES[cityId as keyof typeof CITIES] : undefined;
+const missionForState = (state: SessionState) => missionForId(state.missionId);
 export const hasValidIntakeContext = (state: SessionState): boolean => {
   if (state.cityId === null || state.missionId === null || state.priorityId === null) return false;
-  const mission = MISSIONS[state.missionId];
-  const city = CITIES[state.cityId];
+  const mission = missionForId(state.missionId);
+  const city = cityForId(state.cityId);
   return mission !== undefined && city !== undefined && PRIORITIES.includes(state.priorityId) && mission.cityId === city.id;
 };
 const UNSAFE_SLOT_IDS = new Set(['__proto__', 'constructor', 'prototype']);
@@ -76,7 +79,7 @@ const allowedSlotIds = (facilityKinds: readonly string[]): Set<string> => {
 };
 
 export const isPlacementComplete = (state: SessionState): boolean => {
-  const mission = missionForState(state); const city = state.cityId === null ? undefined : CITIES[state.cityId];
+  const mission = missionForState(state); const city = cityForId(state.cityId);
   if (mission === undefined || city === undefined || mission.cityId !== city.id || state.placements.length !== mission.facilityKinds.length) return false;
   const allowedSlots = allowedSlotIds(mission.facilityKinds);
   const candidateIds = new Set<string>(); const slotIds = new Set<string>(); const kindCounts = new Map<string, number>(); let totalCost = 0;
@@ -91,7 +94,9 @@ export const isPlacementComplete = (state: SessionState): boolean => {
 const expectedAnalysis = (state: SessionState): PlacementAnalysis | null => {
   if (!isPlacementComplete(state) || state.cityId === null || state.missionId === null) return null;
   try {
-    return analyzePlacement(CITIES[state.cityId], MISSIONS[state.missionId], state.placements);
+    const city = cityForId(state.cityId); const mission = missionForId(state.missionId);
+    if (city === undefined || mission === undefined) return null;
+    return analyzePlacement(city, mission, state.placements);
   } catch {
     return null;
   }
@@ -195,7 +200,7 @@ export const selectCanAdvance = (state: SessionState): boolean => selectStageGat
 
 const resetAfterPlacementChange = (state: SessionState): SessionState => ({ ...state, stage: indexOfStage(state.stage) > indexOfStage('placement') ? 'placement' : state.stage, analysis: null, evidence: { ...copyEvidence(state.evidence), inspectedMetricIds: [], selectedUnderservedZoneIds: [], comparedProposalIds: [] } });
 const validPartialPlacements = (state: SessionState, placements: readonly FacilityPlacement[]): boolean => {
-  const mission = missionForState(state); const city = state.cityId === null ? undefined : CITIES[state.cityId];
+  const mission = missionForState(state); const city = cityForId(state.cityId);
   if (mission === undefined || city === undefined || placements.length > mission.facilityKinds.length) return false;
   const allowedSlots = allowedSlotIds(mission.facilityKinds);
   const candidateIds = new Set<string>(); const slotIds = new Set<string>(); const kindCounts = new Map<string, number>();
@@ -210,14 +215,14 @@ const validPartialPlacements = (state: SessionState, placements: readonly Facili
   return true;
 };
 const validZoneAction = (state: SessionState, zoneId: string): boolean => {
-  const city = state.cityId === null ? undefined : CITIES[state.cityId];
+  const city = cityForId(state.cityId);
   return city !== undefined && city.zones.some((zone) => zone.id === zoneId);
 };
 
 export function sessionReducer(state: SessionState, action: SessionAction): SessionState {
   switch (action.type) {
     case 'select-mission': {
-      const mission = MISSIONS[action.missionId]; if (mission === undefined) return state;
+      const mission = missionForId(action.missionId); if (mission === undefined) return state;
       return { ...createInitialSession(), cityId: mission.cityId, missionId: action.missionId };
     }
     case 'select-priority': return state.priorityId === action.priorityId ? state : { ...state, priorityId: action.priorityId };
