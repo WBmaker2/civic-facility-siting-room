@@ -28,7 +28,7 @@ const facilityLabels = {
 const existingBenefit = (city: CityScenario, mission: MissionDefinition, zoneId: string): string => {
   const zone = city.zones.find((item) => item.id === zoneId);
   if (zone === undefined) return '기존 혜택 없음';
-  const coveredKinds = new Set(zone.existingCoverage);
+  const coveredKinds = new Set(zone.existingCoverage.filter((kind) => mission.facilityKinds.includes(kind)));
   for (const facility of city.existingFacilities) {
     const path = shortestTravelPath(city.roads, zone.nodeId, facility.nodeId);
     if (mission.facilityKinds.includes(facility.facilityKind) && path !== null && path.travelUnits <= mission.serviceThreshold) coveredKinds.add(facility.facilityKind);

@@ -1,4 +1,6 @@
 import type { CityScenario, FacilityKind, MissionDefinition, ProposalComparison, ProposalSnapshot } from '../../domain/types';
+import { compareProposals } from '../../engine/proposalComparison';
+import { sameSerializableValue } from '../../engine/validatePlacementAnalysis';
 
 interface AlternativeComparisonProps {
   city: CityScenario;
@@ -16,6 +18,46 @@ const facilityLabels: Record<FacilityKind, string> = {
 
 const metricText = (value: number | null, suffix = ' 이동 단위'): string => value === null ? '계산 불가' : `${value.toFixed(1)}${suffix}`;
 const deltaText = (value: number | null, suffix = ' 이동 단위', decimal = false): string => value === null ? '계산 불가' : `${value > 0 ? '+' : ''}${decimal ? value.toFixed(1) : value}${suffix}`;
+
+const isValidCity = (city: unknown): city is CityScenario => {
+  if (city === null || typeof city !== 'object') return false;
+  const record = city as Partial<CityScenario>;
+  return (record.id === 'mulbit' || record.id === 'maru') && typeof record.name === 'string'
+    && Array.isArray(record.candidates) && Array.isArray(record.zones) && Array.isArray(record.roads);
+};
+
+const isValidMission = (mission: unknown): mission is MissionDefinition => {
+  if (mission === null || typeof mission !== 'object') return false;
+  const record = mission as Partial<MissionDefinition>;
+  return typeof record.id === 'string' && (record.cityId === 'mulbit' || record.cityId === 'maru')
+    && typeof record.title === 'string' && Array.isArray(record.facilityKinds) && Array.isArray(record.conditions);
+};
+
+const isProposalLike = (proposal: unknown): proposal is ProposalSnapshot => {
+  if (proposal === null || typeof proposal !== 'object') return false;
+  const record = proposal as Partial<ProposalSnapshot>;
+  return (record.id === 'proposal-a' || record.id === 'proposal-b')
+    && (record.label === 'A안' || record.label === 'B안') && Array.isArray(record.placements)
+    && record.analysis !== null && typeof record.analysis === 'object'
+    && record.assessment !== null && typeof record.assessment === 'object';
+};
+
+const isComparisonLike = (comparison: unknown): comparison is ProposalComparison => {
+  if (comparison === null || typeof comparison !== 'object') return false;
+  const record = comparison as Partial<ProposalComparison>;
+  const nullableNumbers = (value: unknown): boolean => value === null || (typeof value === 'number' && Number.isFinite(value));
+  return record.firstProposalId === 'proposal-a' && record.secondProposalId === 'proposal-b'
+    && nullableNumbers(record.averageDelta) && nullableNumbers(record.maximumDelta)
+    && typeof record.riskCountDelta === 'number' && typeof record.costTokenDelta === 'number' && typeof record.overlapCountDelta === 'number'
+    && Array.isArray(record.newlyReachedZoneIds) && Array.isArray(record.newlyUnreachableZoneIds) && Array.isArray(record.moreInconveniencedZoneIds);
+};
+
+const invalidComparison = () => (
+  <section aria-labelledby="alternative-comparison-heading" className="alternative-comparison">
+    <h2 id="alternative-comparison-heading">A안과 B안 비교</h2>
+    <p role="alert">비교 자료를 표시할 수 없습니다. 현재 미션과 두 제안의 분석 자료를 다시 확인해 주세요.</p>
+  </section>
+);
 
 function ProposalColumn({ title, proposal, city, mission }: { title: string; proposal: ProposalSnapshot; city: CityScenario; mission: MissionDefinition }) {
   return (
@@ -42,6 +84,25 @@ function ProposalColumn({ title, proposal, city, mission }: { title: string; pro
 }
 
 export function AlternativeComparison({ city, mission, first, second, comparison }: AlternativeComparisonProps) {
+  let propsValid: boolean;
+  try {
+    propsValid = isValidCity(city) && isValidMission(mission) && mission.cityId === city.id
+      && (first === null || isProposalLike(first)) && (second === null || isProposalLike(second))
+      && (comparison === null || isComparisonLike(comparison))
+      && (first === null) === (second === null) && (first !== null || comparison === null);
+  } catch {
+    propsValid = false;
+  }
+  if (!propsValid) return invalidComparison();
+  if (first !== null && second !== null && comparison !== null) {
+    try {
+      if (first.analysis.cityId !== city.id || second.analysis.cityId !== city.id
+        || first.analysis.missionId !== mission.id || second.analysis.missionId !== mission.id
+        || !sameSerializableValue(compareProposals(first, second), comparison)) return invalidComparison();
+    } catch {
+      return invalidComparison();
+    }
+  }
   return (
     <section aria-labelledby="alternative-comparison-heading" className="alternative-comparison">
       <h2 id="alternative-comparison-heading">A안과 B안 비교</h2>

@@ -18,8 +18,26 @@ const isPlainRecord = (value: object): boolean => {
   return prototype === Object.prototype || prototype === null;
 };
 
+const isStrictArray = (value: unknown): value is unknown[] => {
+  if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype) return false;
+  const array = value as unknown[];
+  const lengthDescriptor = Object.getOwnPropertyDescriptor(array, 'length');
+  if (lengthDescriptor === undefined || !('value' in lengthDescriptor)
+    || lengthDescriptor.enumerable || lengthDescriptor.configurable || lengthDescriptor.value !== array.length
+    || (!lengthDescriptor.writable && !Object.isFrozen(array))) return false;
+  const frozen = Object.isFrozen(array);
+  const keys = Reflect.ownKeys(array);
+  if (keys.length !== array.length + 1 || keys.some((key) => key !== 'length' && (typeof key !== 'string' || !/^\d+$/.test(key) || Number(key) >= array.length))) return false;
+  for (let index = 0; index < array.length; index += 1) {
+    const descriptor = Object.getOwnPropertyDescriptor(array, String(index));
+    if (descriptor === undefined || !descriptor.enumerable || !('value' in descriptor)
+      || (!(descriptor.writable && descriptor.configurable) && !frozen)) return false;
+  }
+  return true;
+};
+
 const cloneValue = (value: unknown, seen = new WeakSet<object>()): unknown => {
-  if (value === null || typeof value === 'undefined' || typeof value === 'string' || typeof value === 'boolean') return value;
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') return value;
   if (typeof value === 'number') {
     if (!Number.isFinite(value)) throw new RangeError('Proposal values must be finite.');
     return value;
@@ -27,6 +45,7 @@ const cloneValue = (value: unknown, seen = new WeakSet<object>()): unknown => {
   if (typeof value !== 'object' || seen.has(value)) throw new TypeError('Proposal values must be plain data.');
   seen.add(value);
   if (Array.isArray(value)) {
+    if (!isStrictArray(value)) throw new TypeError('Malformed proposal array.');
     const descriptor = Object.getOwnPropertyDescriptor(value, 'length');
     if (descriptor === undefined || !('value' in descriptor) || descriptor.value !== value.length) throw new TypeError('Malformed proposal array.');
     for (let index = 0; index < value.length; index += 1) {
@@ -34,7 +53,6 @@ const cloneValue = (value: unknown, seen = new WeakSet<object>()): unknown => {
       if (itemDescriptor === undefined || !itemDescriptor.enumerable || !('value' in itemDescriptor)) throw new TypeError('Malformed proposal array.');
     }
     const result = value.map((item) => cloneValue(item, seen));
-    if (Reflect.ownKeys(value).some((key) => key !== 'length' && (typeof key !== 'string' || !/^\d+$/.test(key)))) throw new TypeError('Malformed proposal array.');
     seen.delete(value);
     return result;
   }
@@ -70,8 +88,8 @@ const validateAssessment = (assessment: unknown): assessment is ProposalAssessme
       || !expectedKeys(assessment, ['verdict', 'conditionResults', 'priorityConsistent', 'missingEvidence', 'feedbackPrompts'])) return false;
     const record = assessment as unknown as Record<string, unknown>;
     if (record.verdict !== 'valid-with-tradeoffs' && record.verdict !== 'revise') return false;
-    if (typeof record.priorityConsistent !== 'boolean' || !Array.isArray(record.conditionResults)
-      || !Array.isArray(record.missingEvidence) || !Array.isArray(record.feedbackPrompts)) return false;
+    if (typeof record.priorityConsistent !== 'boolean' || !isStrictArray(record.conditionResults)
+      || !isStrictArray(record.missingEvidence) || !isStrictArray(record.feedbackPrompts)) return false;
     const strings = [...record.missingEvidence, ...record.feedbackPrompts];
     if (!strings.every((item) => typeof item === 'string')) return false;
     return record.conditionResults.every((item) => {
@@ -92,7 +110,7 @@ const validateSnapshot = (snapshot: unknown): snapshot is ProposalSnapshot => {
     const record = snapshot as unknown as Record<string, unknown>;
     if (record.id !== 'proposal-a' && record.id !== 'proposal-b') return false;
     if ((record.id === 'proposal-a' && record.label !== 'A안') || (record.id === 'proposal-b' && record.label !== 'B안')) return false;
-    if (!Array.isArray(record.placements) || !validateAssessment(record.assessment)) return false;
+    if (!isStrictArray(record.placements) || !validateAssessment(record.assessment)) return false;
     const analysis = record.analysis as PlacementAnalysis;
     if (analysis === null || typeof analysis !== 'object') return false;
     const city = typeof analysis.cityId === 'string' && own(CITIES, analysis.cityId) ? CITIES[analysis.cityId as keyof typeof CITIES] : undefined;
@@ -110,7 +128,7 @@ export function createProposalSnapshot(
   assessment: ProposalAssessment,
 ): ProposalSnapshot {
   if (label !== 'A안' && label !== 'B안') throw new RangeError('Proposal label must be A안 or B안.');
-  if (!Array.isArray(placements) || !validateAssessment(assessment)) throw new TypeError('Malformed proposal input.');
+  if (!isStrictArray(placements) || !validateAssessment(assessment)) throw new TypeError('Malformed proposal input.');
   const city = analysis !== null && typeof analysis === 'object' && typeof analysis.cityId === 'string' && own(CITIES, analysis.cityId)
     ? CITIES[analysis.cityId as keyof typeof CITIES] : undefined;
   const mission = analysis !== null && typeof analysis === 'object' && typeof analysis.missionId === 'string' && own(MISSIONS, analysis.missionId)
@@ -128,7 +146,7 @@ export function createProposalSnapshot(
 
 const uniqueZoneRows = (metrics: AccessMetrics): Map<string, ZoneTravelResult> => {
   const rows = metrics.zoneTravel;
-  if (!Array.isArray(rows)) throw new TypeError('Malformed zone travel rows.');
+  if (!isStrictArray(rows)) throw new TypeError('Malformed zone travel rows.');
   const result = new Map<string, ZoneTravelResult>();
   for (const row of rows) {
     if (row === null || typeof row !== 'object' || typeof row.zoneId !== 'string' || result.has(row.zoneId)) throw new TypeError('Missing or duplicate zone row.');
@@ -138,7 +156,7 @@ const uniqueZoneRows = (metrics: AccessMetrics): Map<string, ZoneTravelResult> =
   return result;
 };
 
-const delta = (second: number | null, first: number | null): number | null => second === null || first === null ? null : second - first;
+const delta = (second: number | null, first: number | null): number | null => second === null || first === null ? null : Math.round((second - first) * 10) / 10;
 
 export function compareProposals(first: ProposalSnapshot, second: ProposalSnapshot): ProposalComparison {
   if (!validateSnapshot(first) || !validateSnapshot(second)) throw new TypeError('Cannot compare a malformed proposal.');

@@ -277,6 +277,7 @@ describe('sessionReducer', () => {
     const accepted = sessionReducer(state, { type: 'save-proposal', proposal: expected });
     expect(accepted.proposals).toHaveLength(1);
     expect(Object.isFrozen(accepted.proposals[0])).toBe(true);
+    expect(sessionReducer(state, { type: 'save-proposal', proposal: null as never })).toBe(state);
   });
 
   it('rejects invalid intermediate placements but allows valid slot replacement', () => {
