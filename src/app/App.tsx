@@ -1,6 +1,7 @@
 import { ProgressStepper } from '../navigation/ProgressStepper';
 import { SessionProvider, useSession } from '../state/SessionProvider';
 import { STAGE_LABELS } from '../state/sessionTypes';
+import { useState } from 'react';
 import { MODEL_LIMIT_NOTICE } from '../content/learnerCopy';
 import { ReviewIntake } from '../features/intake/ReviewIntake';
 import { CityDataRoom } from '../features/city-data/CityDataRoom';
@@ -28,6 +29,7 @@ function StagePlaceholder() {
 
 function SessionShell() {
   const { state, dispatch } = useSession();
+  const [opinionSubmitted, setOpinionSubmitted] = useState(false);
   const city = cityForId(state.cityId);
   const mission = missionForId(state.missionId);
   const proposalInput = (label: 'A안' | 'B안') => {
@@ -90,15 +92,16 @@ function SessionShell() {
                       proposals={state.proposals}
                       intakePriorityId={state.priorityId}
                       city={city}
-                      onChange={(opinion) => dispatch({ type: 'set-opinion', opinion })}
+                      onChange={(opinion) => { setOpinionSubmitted(false); dispatch({ type: 'set-opinion', opinion }); }}
+                      onSubmit={() => setOpinionSubmitted(true)}
                     />
-                    {selectOpinionReady(state) && <OpinionSummary
+                    {opinionSubmitted && selectOpinionReady(state) && <OpinionSummary
                       draft={state.opinion}
                       proposals={state.proposals}
                       priorityId={state.priorityId}
                       mission={mission}
                       city={city}
-                      onRestart={() => dispatch({ type: 'restart-mission' })}
+                      onRestart={() => { setOpinionSubmitted(false); dispatch({ type: 'restart-mission' }); }}
                     />}
                   </>
                   : <StagePlaceholder />;
@@ -109,14 +112,7 @@ function SessionShell() {
       <p role="note">{MODEL_LIMIT_NOTICE}</p>
       <ProgressStepper currentStage={state.stage} />
       {stage}
-      {opinionAction && <button type="button" disabled={!selectStageGate(state, 'resident-view')} onClick={() => dispatch({ type: 'go-to-stage', stage: 'opinion' })}>의견서 작성</button>}
-      <details className="update-history">
-        <summary>업데이트 내역</summary>
-        <div>
-          <p>2026-08-26 설계: 가상 도시와 자료 비교 활동을 설계했습니다.</p>
-          <p>2026-08-26 개발: 근거·반론·보완을 담는 입지 의견서 화면을 추가했습니다.</p>
-        </div>
-      </details>
+      {opinionAction && <button type="button" disabled={!selectStageGate(state, 'resident-view')} onClick={() => { dispatch({ type: 'set-opinion', opinion: { ...state.opinion, priorityId: state.priorityId } }); dispatch({ type: 'go-to-stage', stage: 'opinion' }); }}>의견서 작성</button>}
     </main>
   );
 }

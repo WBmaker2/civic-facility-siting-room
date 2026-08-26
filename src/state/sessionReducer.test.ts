@@ -12,6 +12,8 @@ import {
   hasValidIntakeContext,
   selectCanAdvance,
   selectOpinionReady,
+  selectSessionSelectors,
+  selectStageGate,
   sessionReducer,
 } from './sessionReducer';
 import { useSession } from './SessionProvider';
@@ -350,6 +352,26 @@ describe('sessionReducer', () => {
     expect(changed).not.toBe(state);
     expect(changed.opinion).not.toBe(base);
     expect(changed.opinion.evidenceMetricIds).not.toBe(base.evidenceMetricIds);
+  });
+
+  it('rejects opinion priority mismatches and keeps malformed selector states closed', () => {
+    const state = atDataRoom();
+    const mismatch = sessionReducer(state, {
+      type: 'set-opinion',
+      opinion: { ...state.opinion, priorityId: 'cost' },
+    });
+    expect(mismatch).toBe(state);
+
+    const malformed = {
+      ...state,
+      stage: 'opinion',
+      proposals: { length: 2 } as never,
+      opinion: Object.create(null),
+    } as SessionState;
+    expect(selectOpinionReady(malformed)).toBe(false);
+    expect(selectStageGate(malformed, 'opinion')).toBe(false);
+    expect(selectSessionSelectors(malformed)).toEqual({ canAdvance: false, opinionReady: false });
+    expect(selectCanAdvance(malformed)).toBe(false);
   });
 
   it('accepts only an own-key candidate from the assigned city and preserves identity otherwise', () => {
