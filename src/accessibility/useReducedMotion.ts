@@ -8,19 +8,20 @@ export function useReducedMotion(): boolean {
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
+    let active = true;
     let query: MediaQueryList;
     try { query = window.matchMedia('(prefers-reduced-motion: reduce)'); } catch { return undefined; }
-    const update = () => setReducedMotion(query.matches);
+    const update = () => { if (active) setReducedMotion(query.matches); };
     update();
     if (typeof query.addEventListener === 'function') {
       query.addEventListener('change', update);
-      return () => query.removeEventListener?.('change', update);
+      return () => { active = false; query.removeEventListener?.('change', update); };
     }
     if (typeof query.addListener === 'function') {
       query.addListener(update);
-      return () => query.removeListener?.(update);
+      return () => { active = false; query.removeListener?.(update); };
     }
-    return undefined;
+    return () => { active = false; };
   }, []);
 
   return reducedMotion;

@@ -236,7 +236,7 @@ export function ImpactAnalysis({ city, mission, placements, analysis, onAnalysis
       <p>{missionRecord.title}</p>
       <p className="model-limit-notice" role="note">{MODEL_LIMIT_NOTICE}</p>
       {!validContext && <p role="alert">미션·도시·시설 배치 자료가 올바르지 않아 결과를 표시할 수 없습니다. 심의 접수에서 다시 확인해 주세요.</p>}
-      <GuidedActionButton actionId="calculate-impact" currentAction={currentAction} disabled={!validContext} onClick={calculate}>영향 계산</GuidedActionButton>
+      <GuidedActionButton actionId="calculate-impact" currentAction={currentAction} disabled={!validContext} onClick={calculate} className="impact-calculate-action">영향 계산</GuidedActionButton>
       <button
         type="button"
         className="resident-view-action"

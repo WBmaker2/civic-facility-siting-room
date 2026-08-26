@@ -1,8 +1,11 @@
-import type { FacilityKind, FacilityPlacement, MissionDefinition } from '../../domain/types';
+import { useState } from 'react';
+import type { FacilityKind, FacilityPlacement, GuidedActionId, MissionDefinition } from '../../domain/types';
 import { buildPlacementSlots, getRemainingBudget, validatePlacements, type PlacementSlotView } from '../../domain/placementRules';
+import { analyzePlacement } from '../../engine/analyzePlacement';
 import { cityForId, missionForId } from '../../state/sessionReducer';
 import { useSession } from '../../state/SessionProvider';
 import { CandidateBoard } from './CandidateBoard';
+import { GuidedActionButton } from '../../navigation/GuidedActionButton';
 
 export type { PlacementSlotView } from '../../domain/placementRules';
 
@@ -19,8 +22,13 @@ const facilityDisplayName = (mission: MissionDefinition, kind: FacilityKind): st
 
 const labelForSlot = (slot: PlacementSlotView): string => `${facilityLabels[slot.facilityKind]} ${slot.slotId.split('-').pop() ?? ''}곳`;
 
-export function FacilityPlacementPanel() {
+export interface FacilityPlacementPanelProps {
+  currentAction?: GuidedActionId;
+}
+
+export function FacilityPlacementPanel({ currentAction = null }: FacilityPlacementPanelProps) {
   const { state, dispatch } = useSession();
+  const [calculationError, setCalculationError] = useState('');
   const mission = missionForId(state.missionId);
   const city = cityForId(state.cityId);
 
@@ -52,6 +60,17 @@ export function FacilityPlacementPanel() {
   }
   const disabledCandidateIds = placedCandidateIds;
   const placementComplete = state.placements.length === mission.facilityKinds.length && validatePlacements(mission, city, state.placements);
+  const openAnalysis = () => {
+    if (!placementComplete) return;
+    try {
+      const analysis = analyzePlacement(city, mission, state.placements);
+      setCalculationError('');
+      dispatch({ type: 'store-analysis', analysis });
+      dispatch({ type: 'go-to-stage', stage: 'analysis' });
+    } catch {
+      setCalculationError('영향 계산을 완료하지 못했습니다. 현재 배치를 확인한 뒤 다시 시도해 주세요.');
+    }
+  };
 
   const placementForSlot = (slot: PlacementSlotView): FacilityPlacement | null => {
     if (selectedCandidate === undefined) return null;
@@ -120,9 +139,8 @@ export function FacilityPlacementPanel() {
         })}
       </div>
       <p>각 수치는 실제 도시가 아닌 가상 격자 모형의 상대 단위입니다. 후보지를 바꾸면 영향 분석을 다시 확인해야 합니다.</p>
-      <button type="button" disabled={!placementComplete} onClick={() => dispatch({ type: 'go-to-stage', stage: 'analysis' })}>
-        영향 분석실로 이동
-      </button>
+      <GuidedActionButton actionId="calculate-impact" currentAction={currentAction} disabled={!placementComplete} onClick={openAnalysis}>영향 계산</GuidedActionButton>
+      {calculationError && <p role="alert">{calculationError}</p>}
       {!placementComplete && <p role="status">모든 시설 슬롯에 유효한 후보지를 배치하면 영향 분석실로 갈 수 있습니다.</p>}
     </section>
   );

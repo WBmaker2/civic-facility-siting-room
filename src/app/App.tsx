@@ -32,7 +32,7 @@ function StagePlaceholder() {
 function SessionShell() {
   const { state, dispatch } = useSession();
   const [opinionSubmitted, setOpinionSubmitted] = useState(false);
-  const currentAction = opinionSubmitted ? null : getGuidedAction(state);
+  const currentAction = opinionSubmitted ? null : (state.stage === 'opinion' && selectOpinionReady(state) ? 'write-opinion' : getGuidedAction(state));
   const city = cityForId(state.cityId);
   const mission = missionForId(state.missionId);
   const proposalInput = (label: 'A안' | 'B안') => {
@@ -51,7 +51,7 @@ function SessionShell() {
       : state.stage === 'data-room'
         ? <CityDataRoom currentAction={currentAction} />
         : state.stage === 'placement'
-          ? <FacilityPlacementPanel />
+          ? <FacilityPlacementPanel currentAction={currentAction} />
           : state.stage === 'analysis' && city !== undefined && mission !== undefined
             ? <ImpactAnalysis
               city={city}
@@ -68,7 +68,7 @@ function SessionShell() {
               ? <section aria-labelledby="impact-analysis-heading" data-stage-id="analysis" role="region">
                 <h2 id="impact-analysis-heading">영향 분석실</h2>
                 <p role="alert">미션·배정 도시 자료가 올바르지 않아 영향 분석을 열 수 없습니다. 심의 접수에서 다시 선택해 주세요.</p>
-                <button type="button" disabled>영향 계산</button>
+                <GuidedActionButton actionId="calculate-impact" currentAction={currentAction} disabled onClick={() => undefined}>영향 계산</GuidedActionButton>
               </section>
               : state.stage === 'resident-view' && city !== undefined && mission !== undefined
                 ? <>

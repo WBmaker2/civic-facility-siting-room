@@ -70,6 +70,11 @@ const cloneValue = (value: unknown, seen = new WeakSet<object>()): unknown => {
   return result;
 };
 
+/** Clones descriptor-safe ordinary data without invoking accessors. */
+export function cloneStrictSerializable<T>(value: unknown): T {
+  return cloneValue(value) as T;
+}
+
 const freezeDeep = <T>(value: T, seen = new WeakSet<object>()): T => {
   if (value !== null && typeof value === 'object' && !seen.has(value)) {
     seen.add(value);

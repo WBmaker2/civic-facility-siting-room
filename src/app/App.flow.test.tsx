@@ -17,14 +17,17 @@ describe('App learner flow through impact analysis', () => {
     await user.click(screen.getByRole('checkbox', { name: '도로·이동 단위' }));
     await user.click(screen.getByRole('button', { name: '자료층 확인' }));
     expect(screen.getByRole('region', { name: '후보 배치판' })).toBeInTheDocument();
-    const enterAnalysis = screen.getByRole('button', { name: '영향 분석실로 이동' });
+    const enterAnalysis = screen.getByRole('button', { name: '영향 계산' });
     expect(enterAnalysis).toBeDisabled();
     await user.click(await screen.findByRole('radio', { name: /느린 강변 터.*물빛 B2/ }));
     await user.click(screen.getByRole('button', { name: '시설 배치' }));
-    expect(screen.getByRole('button', { name: '영향 분석실로 이동' })).toBeEnabled();
-    await user.click(screen.getByRole('button', { name: '영향 분석실로 이동' }));
+    expect(screen.getByRole('button', { name: '영향 계산' })).toBeEnabled();
+    expect(document.querySelectorAll('.gi-pulse')).toHaveLength(1);
+    await user.click(screen.getByRole('button', { name: '영향 계산' }));
     expect(screen.getByRole('region', { name: '영향 분석실' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '영향 계산' })).toBeEnabled();
+    expect(screen.getAllByText(/평균 이동 단위:/).length).toBeGreaterThan(0);
+    expect(document.querySelectorAll('.gi-pulse')).toHaveLength(0);
   });
 
   it('completes the resident A revision B comparison loop without a winner', async () => {
@@ -38,7 +41,7 @@ describe('App learner flow through impact analysis', () => {
     await user.click(screen.getByRole('button', { name: '자료층 확인' }));
     await user.click(screen.getByRole('radio', { name: /느린 강변 터.*물빛 B2/ }));
     await user.click(screen.getByRole('button', { name: '시설 배치' }));
-    await user.click(screen.getByRole('button', { name: '영향 분석실로 이동' }));
+    await user.click(screen.getByRole('button', { name: '영향 계산' }));
     await user.click(screen.getByRole('button', { name: '영향 계산' }));
     await user.click(screen.getByRole('button', { name: /평균 이동 단위/ }));
     await user.click(screen.getByRole('button', { name: /가장 긴 이동 단위/ }));
@@ -49,7 +52,7 @@ describe('App learner flow through impact analysis', () => {
     await user.click(screen.getByRole('button', { name: '후보 수정하여 B안 만들기' }));
     await user.click(screen.getByRole('radio', { name: /가운데 광장 터.*물빛 C3/ }));
     await user.click(screen.getByRole('button', { name: '시설 배치' }));
-    await user.click(screen.getByRole('button', { name: '영향 분석실로 이동' }));
+    await user.click(screen.getByRole('button', { name: '영향 계산' }));
     await user.click(screen.getByRole('button', { name: '영향 계산' }));
     await user.click(screen.getByRole('button', { name: /평균 이동 단위/ }));
     await user.click(screen.getByRole('button', { name: /가장 긴 이동 단위/ }));
@@ -78,7 +81,7 @@ describe('App learner flow through impact analysis', () => {
     await user.click(screen.getByRole('button', { name: '자료층 확인' }));
     await user.click(screen.getByRole('radio', { name: /느린 강변 터.*물빛 B2/ }));
     await user.click(screen.getByRole('button', { name: '시설 배치' }));
-    await user.click(screen.getByRole('button', { name: '영향 분석실로 이동' }));
+    await user.click(screen.getByRole('button', { name: '영향 계산' }));
     await user.click(screen.getByRole('button', { name: '영향 계산' }));
     await user.click(screen.getByRole('button', { name: /평균 이동 단위/ }));
     await user.click(screen.getByRole('button', { name: /가장 긴 이동 단위/ }));
@@ -88,7 +91,7 @@ describe('App learner flow through impact analysis', () => {
     await user.click(screen.getByRole('button', { name: '후보 수정하여 B안 만들기' }));
     await user.click(screen.getByRole('radio', { name: /가운데 광장 터.*물빛 C3/ }));
     await user.click(screen.getByRole('button', { name: '시설 배치' }));
-    await user.click(screen.getByRole('button', { name: '영향 분석실로 이동' }));
+    await user.click(screen.getByRole('button', { name: '영향 계산' }));
     await user.click(screen.getByRole('button', { name: '영향 계산' }));
     await user.click(screen.getByRole('button', { name: /평균 이동 단위/ }));
     await user.click(screen.getByRole('button', { name: /가장 긴 이동 단위/ }));
@@ -97,6 +100,8 @@ describe('App learner flow through impact analysis', () => {
     await user.click(screen.getByRole('button', { name: 'B안 저장' }));
     await user.click(screen.getByRole('button', { name: '의견서 작성' }));
     expect(screen.queryByRole('heading', { name: '완성한 입지 심의 의견서' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '의견서 작성' })).toBeDisabled();
+    expect(document.querySelectorAll('.gi-pulse')).toHaveLength(0);
     await user.click(screen.getByRole('radio', { name: 'A안' }));
     await user.click(screen.getByRole('checkbox', { name: '평균 이동 단위' }));
     await user.click(screen.getByRole('checkbox', { name: '가장 긴 이동 단위' }));
@@ -106,11 +111,15 @@ describe('App learner flow through impact analysis', () => {
     await user.type(screen.getByLabelText('예상되는 반론'), '다른 구역의 이동 부담이 커질 수 있습니다.');
     await user.type(screen.getByLabelText('보완 방법'), '단계적 안내를 함께 마련하겠습니다.');
     expect(screen.queryByRole('heading', { name: '완성한 입지 심의 의견서' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '의견서 작성' })).toBeEnabled();
+    expect(document.querySelectorAll('.gi-pulse')).toHaveLength(1);
     await user.click(screen.getByRole('button', { name: '의견서 작성' }));
     expect(screen.getByRole('heading', { name: '완성한 입지 심의 의견서' })).toBeInTheDocument();
+    expect(document.querySelectorAll('.gi-pulse')).toHaveLength(0);
     await user.click(screen.getByLabelText('선택안의 근거'));
     await user.keyboard('{End} 수정');
     expect(screen.queryByRole('heading', { name: '완성한 입지 심의 의견서' })).not.toBeInTheDocument();
+    expect(document.querySelectorAll('.gi-pulse')).toHaveLength(1);
     await user.click(screen.getByRole('button', { name: '의견서 작성' }));
     expect(screen.getByRole('heading', { name: '완성한 입지 심의 의견서' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: '처음부터 다시 시작' }));
