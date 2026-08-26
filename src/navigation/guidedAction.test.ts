@@ -37,6 +37,11 @@ describe('getGuidedAction', () => {
     expect(getGuidedAction(stateWith({ stage: 'data-room' }))).toBe('review-layers');
   });
 
+  it('stops the data-room guide after two distinct layers are reviewed', () => {
+    const state = stateWith({ stage: 'data-room', evidence: { reviewedLayerIds: ['population', 'roads'], inspectedMetricIds: [], selectedUnderservedZoneIds: [], comparedProposalIds: [] } });
+    expect(getGuidedAction(state)).toBeNull();
+  });
+
   it('guides a valid placement without a fresh analysis to calculate impact', () => {
     expect(getGuidedAction(stateWith({ stage: 'placement', placements: [{ slotId: 'library-1', facilityKind: 'library', candidateId: 'mulbit-b2' }] }))).toBe('calculate-impact');
   });

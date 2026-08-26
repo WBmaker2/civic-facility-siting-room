@@ -24,7 +24,7 @@ export interface CityDataRoomProps {
 export function CityDataRoom({ currentAction = null }: CityDataRoomProps) {
   const { state, dispatch } = useSession();
   const city = cityForId(state.cityId);
-  const [viewMode, setViewMode] = useState<'map' | 'table'>('map');
+  const [viewMode, setViewMode] = useState<'map' | 'table'>(() => new URLSearchParams(window.location.search).get('view') === 'table' ? 'table' : 'map');
   const tabRefs = useRef<Record<'map' | 'table', HTMLButtonElement | null>>({ map: null, table: null });
   const reviewedCount = new Set(state.evidence.reviewedLayerIds).size;
   const validReviewContext = hasValidIntakeContext(state);

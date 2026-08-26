@@ -28,8 +28,7 @@ async function assertAccessibleStage(stage: string, requireAnnouncement = false)
     expect(screen.getByRole('group', { name: '확인할 자료층' })).toBeInTheDocument();
     expect(document.querySelectorAll('[data-pattern]').length).toBeGreaterThan(0);
     if (document.querySelectorAll('input[type="checkbox"]:checked').length > 0) {
-      const legend = document.querySelector('[aria-label="켜진 자료층 범례"]');
-      expect(legend).toBeTruthy();
+      const legend = screen.getByRole('group', { name: '켜진 자료층 범례' });
       expect(legend).toHaveTextContent('●');
       expect(legend).toHaveTextContent('↔');
       expect(legend).toHaveTextContent(/무늬: 사람 토큰/);
@@ -67,11 +66,23 @@ async function goToLibraryOpinion(): Promise<void> {
   await user.click(screen.getByRole('button', { name: '영향 계산' }));
   await assertAccessibleStage('analysis');
   const calculate = screen.getByRole('button', { name: '영향 계산' });
+  const status = screen.getByRole('status');
+  const liveUpdates: string[] = [];
+  const observer = new MutationObserver(() => {
+    const message = status.textContent?.trim() ?? '';
+    if (message !== '') liveUpdates.push(message);
+  });
+  observer.observe(status, { childList: true, characterData: true, subtree: true });
   await user.click(calculate);
-  expect(screen.getByRole('status')).toHaveTextContent('영향 계산이 완료되었습니다. 평균, 가장 긴 이동, 도달 불가, 위험, 비용을 함께 확인하세요.');
+  await new Promise<void>((resolve) => queueMicrotask(resolve));
+  expect(liveUpdates).toEqual(['영향 계산이 완료되었습니다. 평균, 가장 긴 이동, 도달 불가, 위험, 비용을 함께 확인하세요.']);
   expect(document.activeElement).toBe(calculate);
   await assertAccessibleStage('analysis', true);
+  const updatesBeforeRepeat = liveUpdates.length;
   await user.click(screen.getByRole('button', { name: '영향 계산' }));
+  await new Promise<void>((resolve) => queueMicrotask(resolve));
+  observer.disconnect();
+  expect(liveUpdates.length).toBe(updatesBeforeRepeat);
   await user.click(screen.getByRole('button', { name: /평균 이동 단위/ }));
   await user.click(screen.getByRole('button', { name: /가장 긴 이동 단위/ }));
   await user.click(screen.getByRole('button', { name: '주민 관점표로 이동' }));

@@ -142,7 +142,7 @@ export function getGuidedAction(input: SessionState): GuidedActionId {
     if (input === null || typeof input !== 'object') return null;
     const state = sanitizeState(input);
     if (state === null || selectOpinionReady(state)) return null;
-    if (state.stage === 'data-room') return 'review-layers';
+    if (state.stage === 'data-room') return new Set(state.evidence.reviewedLayerIds).size < 2 ? 'review-layers' : null;
     if ((state.stage === 'placement' || state.stage === 'analysis') && isPlacementComplete(state)) return hasFreshAnalysis(state) ? null : 'calculate-impact';
     if (state.stage === 'resident-view' || state.stage === 'opinion') {
       const hasMetrics = state.evidence.inspectedMetricIds.includes('average') && state.evidence.inspectedMetricIds.includes('maximum');

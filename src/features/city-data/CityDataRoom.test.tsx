@@ -27,6 +27,26 @@ async function renderSessionAtDataRoom() {
 describe('CityDataRoom', () => {
   afterEach(() => cleanup());
 
+  it('uses table only for the exact query mode and keeps unknown mode on map without storage', async () => {
+    const getItem = vi.spyOn(Storage.prototype, 'getItem');
+    const setItem = vi.spyOn(Storage.prototype, 'setItem');
+    for (const [query, expected] of [['?view=table', 'table'], ['?view=map', 'map'], ['?view=unknown', 'map']] as const) {
+      cleanup();
+      window.history.replaceState({}, '', `/${query}`);
+      await renderSessionAtDataRoom();
+      if (expected === 'table') {
+        expect(screen.getByRole('tabpanel', { name: '표 보기' })).toBeInTheDocument();
+        expect(screen.queryByRole('grid')).not.toBeInTheDocument();
+      } else {
+        expect(screen.getByRole('tabpanel', { name: '지도 보기' })).toBeInTheDocument();
+        expect(screen.getByRole('grid')).toBeInTheDocument();
+      }
+    }
+    expect(getItem).not.toHaveBeenCalled();
+    expect(setItem).not.toHaveBeenCalled();
+    window.history.replaceState({}, '', '/');
+  });
+
   it('requires two reviewed layers before data confirmation', async () => {
     const user = await renderSessionAtDataRoom();
     const confirm = screen.getByRole('button', { name: '자료층 확인' });

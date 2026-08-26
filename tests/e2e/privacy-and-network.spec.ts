@@ -2,8 +2,11 @@ import { expect, test } from '@playwright/test';
 import { assertLocalhostRequests, chooseIntake, installConsoleGuards, inspectAndOpenResident, isForbiddenRequestPath, placeSingle, reviewLayers } from './flow-helpers';
 
 test('rejects known analytics, map, AI, login, and submission request variants', () => {
-  for (const path of ['/analytics', '/analytics.js', '/maps.js', '/geocoding/search', '/ai-recommend', '/login-callback', '/submit-opinion', '/submission']) {
+  for (const path of ['/map', '/maps', '/maps/tiles', '/map.js', '/maps.js', '/geocode', '/geocoding/search', '/ai', '/ai-helper', '/ai-recommendation', '/analytics', '/analytics.js', '/openai/chat', '/gemini', '/auth/session', '/login', '/login/foo', '/login-callback', '/submit', '/submit/foo', '/submit-opinion', '/submission']) {
     expect(isForbiddenRequestPath(path), path).toBe(true);
+  }
+  for (const path of ['/src/main.tsx', '/@vite/client', '/assets/index.js', '/favicon.ico']) {
+    expect(isForbiddenRequestPath(path), path).toBe(false);
   }
   expect(() => assertLocalhostRequests(['https://evil.example/ok'])).toThrow();
   expect(() => assertLocalhostRequests(['http://127.0.0.1:5173/maps.js'])).toThrow();
