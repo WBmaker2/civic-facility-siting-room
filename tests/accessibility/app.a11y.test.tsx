@@ -44,6 +44,7 @@ async function assertAccessibleStage(stage: string, requireAnnouncement = false)
     expect(screen.getByRole('table', { name: '구역별 주민 관점 비교' })).toBeInTheDocument();
     expect(screen.getByRole('group', { name: '누가 더 불편한가요?' })).toBeInTheDocument();
   } else if (stage === 'opinion') {
+    expect(screen.getByRole('form', { name: '심의 의견서 작성' })).toBeInTheDocument();
     expect(screen.getByRole('group', { name: '우선 기준' })).toBeInTheDocument();
     expect(screen.getByRole('group', { name: '선택안' })).toBeInTheDocument();
     expect(screen.getByLabelText('선택안의 근거')).toBeInTheDocument();

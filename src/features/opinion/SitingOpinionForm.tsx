@@ -66,7 +66,8 @@ export function SitingOpinionForm({ draft, proposals, intakePriorityId, priority
       <p role="note">{PRIVACY_NOTICE}</p>
       <p role="note">{SOCIAL_SAFETY_NOTICE}</p>
 
-      <fieldset aria-describedby={safeDraft.priorityId !== null && safeDraft.priorityId !== intake ? 'opinion-error-priority' : undefined} aria-invalid={safeDraft.priorityId !== null && safeDraft.priorityId !== intake ? true : undefined}>
+      <form aria-label="심의 의견서 작성" onSubmit={(event) => { event.preventDefault(); }}>
+        <fieldset aria-describedby={safeDraft.priorityId !== null && safeDraft.priorityId !== intake ? 'opinion-error-priority' : undefined} aria-invalid={safeDraft.priorityId !== null && safeDraft.priorityId !== intake ? true : undefined}>
         <legend>우선 기준</legend>
         {PRIORITIES.map((priority) => <label key={priority.id} htmlFor={`opinion-priority-${priority.id}`}>
           <input id={`opinion-priority-${priority.id}`} type="radio" name="opinion-priority" value={priority.id} checked={safeDraft.priorityId === priority.id} onChange={() => update('priorityId', priority.id)} />
@@ -74,18 +75,18 @@ export function SitingOpinionForm({ draft, proposals, intakePriorityId, priority
         </label>)}
         {intake !== null && <p>심의 접수에서 고른 기준: <strong>{priorityLabel(intake)}</strong></p>}
         {safeDraft.priorityId !== null && safeDraft.priorityId !== intake && <p id="opinion-error-priority" role="alert">심의 접수에서 고른 기준과 같은 기준을 선택해 주세요.</p>}
-      </fieldset>
+        </fieldset>
 
-      <fieldset aria-describedby={validation.errors.proposal === null ? undefined : 'opinion-error-proposal'} aria-invalid={validation.errors.proposal === null ? undefined : true}>
+        <fieldset aria-describedby={validation.errors.proposal === null ? undefined : 'opinion-error-proposal'} aria-invalid={validation.errors.proposal === null ? undefined : true}>
         <legend>선택안</legend>
         {safeProposals.map((proposal) => <label key={proposal.id} htmlFor={`opinion-proposal-${proposal.id}`}>
           <input id={`opinion-proposal-${proposal.id}`} type="radio" name="opinion-proposal" value={proposal.id} checked={safeDraft.selectedProposalId === proposal.id} onChange={() => update('selectedProposalId', proposal.id)} />
           {proposal.label}
         </label>)}
         {validation.errors.proposal !== null && <p id="opinion-error-proposal" role="alert">{validation.errors.proposal}</p>}
-      </fieldset>
+        </fieldset>
 
-      <fieldset aria-describedby={validation.errors.evidence === null ? undefined : 'opinion-error-evidence'} aria-invalid={validation.errors.evidence === null ? undefined : true}>
+        <fieldset aria-describedby={validation.errors.evidence === null ? undefined : 'opinion-error-evidence'} aria-invalid={validation.errors.evidence === null ? undefined : true}>
         <legend>공개 조건 근거</legend>
         <p>평균과 가장 긴 이동 결과를 함께 보고, 추가 조건을 하나 이상 선택하세요.</p>
         {METRICS.map((metric) => <label key={metric.id} htmlFor={`opinion-metric-${metric.id}`}>
@@ -96,7 +97,7 @@ export function SitingOpinionForm({ draft, proposals, intakePriorityId, priority
           {metric.label}
         </label>)}
         {validation.errors.evidence !== null && <p id="opinion-error-evidence" role="alert">{validation.errors.evidence}</p>}
-      </fieldset>
+        </fieldset>
 
       <div className="opinion-field">
         <label htmlFor="opinion-zone">더 불편을 살필 구역</label>
@@ -116,7 +117,8 @@ export function SitingOpinionForm({ draft, proposals, intakePriorityId, priority
       {textField('mitigation', '보완 방법', '이를 보완하기 위해 ___을 함께 제안합니다.')}
 
       <GuidedActionButton actionId="write-opinion" currentAction={currentAction} disabled={!validation.complete || safeDraft.priorityId !== intake} onClick={() => { if (validation.complete && safeDraft.priorityId === intake) (onSubmit ?? onSave)?.(); }}>의견서 작성</GuidedActionButton>
-      {!validation.complete && <p role="status">필수 조건과 세 문장 내용을 모두 채우면 의견서를 완성할 수 있습니다.</p>}
+        {!validation.complete && <p role="status">필수 조건과 세 문장 내용을 모두 채우면 의견서를 완성할 수 있습니다.</p>}
+      </form>
     </section>
   );
 }
