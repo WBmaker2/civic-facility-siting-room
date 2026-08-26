@@ -33,13 +33,6 @@ const longestZoneNames = (analysis: PlacementAnalysis, city: CityScenario): stri
   return zoneNames(city, ids);
 };
 
-const missionBudgets: Record<PlacementAnalysis['missionId'], number> = {
-  'bookmaru-library': 3,
-  'health-help-center': 3,
-  'living-culture-center': 3,
-  'combined-review': 4,
-};
-
 export function explainCalculation(analysis: PlacementAnalysis, city: CityScenario): CalculationRow[] {
   const access = analysis.nearestFacilityAccess;
   const mobility = analysis.mobilityBarrierAccess;
@@ -48,13 +41,15 @@ export function explainCalculation(analysis: PlacementAnalysis, city: CityScenar
     .filter((candidate): candidate is NonNullable<typeof candidate> => candidate !== undefined);
   const riskText = analysis.riskyCandidateIds.map((id) => {
     const site = city.candidates.find((candidate) => candidate.id === id);
-    const markers = city.riskMarkers.filter((marker) => marker.nodeId === site?.nodeId).map((marker) => marker.label);
+    const markers = city.riskMarkers
+      .filter((marker) => marker.nodeId === site?.nodeId)
+      .map((marker) => `${marker.kind}: ${marker.label}`);
     return `${site?.name ?? id} (${markers.join(', ') || '위험 표지'})`;
   }).join(', ') || '없음';
   const costText = sites.map((site) => `${site.name} ${site.costTokens}토큰`).join(', ') || '없음';
   const unreachableTokens = access.unreachableZoneIds.reduce((sum, id) => sum + (zoneById(city, id)?.peopleTokens ?? 0), 0);
 
-  return [
+  const rows: CalculationRow[] = [
     {
       label: '평균 이동 단위',
       value: `${formatNumber(access.populationWeightedAverage)} 가상 단위`,
@@ -73,24 +68,33 @@ export function explainCalculation(analysis: PlacementAnalysis, city: CityScenar
         : `${zoneNames(city, access.unreachableZoneIds)} (${access.unreachableZoneIds.join(', ')}, ${unreachableTokens}명 토큰)는 경로가 없어 평균에서 제외하고 따로 표시했습니다. 가상 단위 모형입니다.`,
     },
     {
-      label: '이동이 어려운 구역',
-      value: `${formatNumber(mobility.populationWeightedAverage)} 가상 단위`,
-      explanation: `이동이 어려운 구역만 따로 계산: 도달 ${mobility.reachablePeopleTokens} / 전체 ${mobility.totalPeopleTokens}명 토큰, 산식은 해당 구역의 이동 단위 × 사람 토큰 ÷ 도달 토큰입니다.`,
-    },
-    {
       label: '위험 표지',
       value: riskText,
-      explanation: '선택한 터의 가상 위험 표지 종류를 숫자 점수나 실제 재난 확률로 바꾸지 않았습니다.',
+      explanation: '선택한 터의 marker kind와 정성 label을 숫자 점수나 실제 재난 확률로 바꾸지 않았습니다.',
     },
     {
       label: '예산',
-      value: `${analysis.totalCostTokens} / ${missionBudgets[analysis.missionId]} 토큰`,
-      explanation: `${costText}; 배치된 터 비용의 합계 ${analysis.totalCostTokens} / 예산 ${missionBudgets[analysis.missionId]} 토큰입니다. 수치는 가상 예산 단위입니다.`,
-    },
-    {
-      label: '기존 시설 중복·공백',
-      value: `중복 ${analysis.overlapZoneIds.length}곳 · 공백 ${analysis.coverageGapZoneIds.length}곳`,
-      explanation: `기존 시설과 새 시설이 함께 닿는 구역: ${zoneNames(city, analysis.overlapZoneIds)}. 어느 시설에도 닿지 않는 구역: ${zoneNames(city, analysis.coverageGapZoneIds)}. 서비스 기준은 공개된 가상 이동 단위입니다.`,
+      value: `${analysis.totalCostTokens} / ${analysis.missionContext.budgetTokens} 토큰`,
+      explanation: `${costText}; 배치된 터 비용의 합계 ${analysis.totalCostTokens} / 예산 ${analysis.missionContext.budgetTokens} 토큰입니다. 수치는 가상 예산 단위입니다.`,
     },
   ];
+
+  if (mobility.zoneTravel.length > 0) {
+    rows.splice(3, 0, {
+      label: '이동이 어려운 구역',
+      value: `${formatNumber(mobility.populationWeightedAverage)} 가상 단위`,
+      explanation: `이동이 어려운 구역만 따로 계산: 도달 ${mobility.reachablePeopleTokens} / 전체 ${mobility.totalPeopleTokens}명 토큰, 산식은 해당 구역의 이동 단위 × 사람 토큰 ÷ 도달 토큰입니다.`,
+    });
+  }
+
+  if (analysis.missionContext.conditionCodes.includes('COVERAGE_GAP_WITHIN_LIMIT')) {
+    const kinds = analysis.missionContext.facilityKinds.join(', ');
+    rows.push({
+      label: '기존 시설 중복·공백',
+      value: `중복 ${analysis.overlapZoneIds.length}곳 · 공백 ${analysis.coverageGapZoneIds.length}곳`,
+      explanation: `시설 종류 ${kinds}, 서비스 임계값 ${analysis.missionContext.serviceThreshold} 가상 단위 기준입니다. 기존 시설 근거가 있고 새 시설도 임계값 안에 닿는 중복 구역: ${zoneNames(city, analysis.overlapZoneIds)}. 기존·새 시설 어느 쪽도 닿지 않는 공백 구역: ${zoneNames(city, analysis.coverageGapZoneIds)}.`,
+    });
+  }
+
+  return rows;
 }

@@ -36,10 +36,16 @@ export interface AccessMetrics {
   populationWeightedAverage: number | null; reachablePeopleTokens: number; totalPeopleTokens: number; longestReachableTravel: number | null;
   worstServedZoneIds: string[]; unreachableZoneIds: string[]; zoneTravel: ZoneTravelResult[];
 }
+export interface AnalysisMissionContext {
+  readonly budgetTokens: number;
+  readonly serviceThreshold: number;
+  readonly facilityKinds: readonly FacilityKind[];
+  readonly conditionCodes: readonly MissionCondition['code'][];
+}
 export interface PlacementAnalysis {
   cityId: CityId; missionId: MissionId; placements: FacilityPlacement[]; perFacility: Record<string, AccessMetrics>;
   nearestFacilityAccess: AccessMetrics; mobilityBarrierAccess: AccessMetrics; totalCostTokens: number; riskyCandidateIds: string[];
-  overlapZoneIds: string[]; coverageGapZoneIds: string[];
+  overlapZoneIds: string[]; coverageGapZoneIds: string[]; missionContext: AnalysisMissionContext;
 }
 export interface LearningEvidence {
   reviewedLayerIds: DataLayerId[]; inspectedMetricIds: Array<'average' | 'maximum' | 'unreachable' | 'risk' | 'cost'>;

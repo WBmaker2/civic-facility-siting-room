@@ -1,6 +1,7 @@
 import { shortestTravelPath } from './shortestPath';
 import type {
   AccessMetrics,
+  AnalysisMissionContext,
   CityScenario,
   FacilityKind,
   FacilityPlacement,
@@ -15,6 +16,14 @@ const compareZoneTravel = (left: ZoneTravelResult, right: ZoneTravelResult): num
 
 const compareText = (left: string, right: string): number =>
   left < right ? -1 : left > right ? 1 : 0;
+
+const unsafeSlotIds = new Set(['__proto__', 'constructor', 'prototype']);
+
+const validateSlotId = (slotId: string): void => {
+  if (typeof slotId !== 'string' || slotId.trim().length === 0 || unsafeSlotIds.has(slotId)) {
+    throw new RangeError('Facility slot ID must be a safe, non-empty identifier.');
+  }
+};
 
 const roundToOneDecimal = (value: number): number => Math.round(value * 10) / 10;
 
@@ -102,6 +111,7 @@ const validatePlacements = (
   const usedSlotIds = new Set<string>();
   const actualKinds = new Map<FacilityKind, number>();
   for (const placement of placements) {
+    validateSlotId(placement.slotId);
     const candidate = candidatesById.get(placement.candidateId);
     if (candidate === undefined) throw new RangeError(`Unknown candidate: ${placement.candidateId}`);
     if (usedCandidateIds.has(placement.candidateId)) throw new RangeError('Candidate sites must be distinct.');
@@ -147,7 +157,7 @@ export function analyzePlacement(
 ): PlacementAnalysis {
   const validated = validatePlacements(city, mission, placements);
   const orderedPlacements = [...placements].sort((left, right) => compareText(left.slotId, right.slotId));
-  const perFacility: Record<string, AccessMetrics> = {};
+  const perFacility: Record<string, AccessMetrics> = Object.create(null) as Record<string, AccessMetrics>;
   for (const placement of orderedPlacements) {
     const details = validated.get(placement.slotId)!;
     perFacility[placement.slotId] = makeAccessMetrics(
@@ -194,6 +204,13 @@ export function analyzePlacement(
     .map((zone) => zone.id)
     .sort();
 
+  const missionContext: AnalysisMissionContext = Object.freeze({
+    budgetTokens: mission.budgetTokens,
+    serviceThreshold: mission.serviceThreshold,
+    facilityKinds: Object.freeze([...mission.facilityKinds]),
+    conditionCodes: Object.freeze(mission.conditions.map((condition) => condition.code)),
+  });
+
   return {
     cityId: city.id,
     missionId: mission.id,
@@ -205,5 +222,6 @@ export function analyzePlacement(
     riskyCandidateIds,
     overlapZoneIds,
     coverageGapZoneIds,
+    missionContext,
   };
 }
