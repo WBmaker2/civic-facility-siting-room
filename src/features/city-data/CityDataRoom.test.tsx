@@ -271,6 +271,38 @@ describe('GridMap and CityDataTable contracts', () => {
     expect(document.activeElement).toBe(grid);
   });
 
+  it('prevents ArrowLeft, but leaves Tab alone without changing grid state', async () => {
+    const user = userEvent.setup();
+    render(<GridMap city={MULBIT_CITY} activeLayerIds={ALL_LAYERS} selectedCandidateId={null} onSelectCandidate={vi.fn()} />);
+    const grid = screen.getByRole('grid');
+    grid.focus();
+    await user.keyboard('{ArrowRight}');
+    const before = grid.getAttribute('aria-activedescendant');
+    const left = new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true });
+    grid.dispatchEvent(left);
+    expect(left.defaultPrevented).toBe(true);
+    await waitFor(() => expect(grid).toHaveAttribute('aria-activedescendant', 'mulbit-cell-a1'));
+    const afterLeft = grid.getAttribute('aria-activedescendant');
+    const tab = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+    grid.dispatchEvent(tab);
+    expect(tab.defaultPrevented).toBe(false);
+    expect(grid.getAttribute('aria-activedescendant')).toBe(afterLeft);
+    expect(afterLeft).not.toBe(before);
+    expect(document.activeElement).toBe(grid);
+  });
+
+  it('does not mutate layer arrays during interaction or prop changes', () => {
+    const original = [...ALL_LAYERS];
+    const nextLayers = [...ALL_LAYERS].reverse();
+    const { rerender } = render(<GridMap city={MULBIT_CITY} activeLayerIds={original} selectedCandidateId={null} onSelectCandidate={vi.fn()} />);
+    const grid = screen.getByRole('grid');
+    fireEvent.keyDown(grid, { key: 'ArrowDown' });
+    rerender(<GridMap city={MULBIT_CITY} activeLayerIds={nextLayers} selectedCandidateId="mulbit-b2" onSelectCandidate={vi.fn()} />);
+    fireEvent.keyDown(grid, { key: 'ArrowRight' });
+    expect(original).toEqual(ALL_LAYERS);
+    expect(nextLayers).toEqual([...ALL_LAYERS].reverse());
+  });
+
   it('clamps all four directions and reports row/column indices and a real unique active cell', () => {
     const user = userEvent.setup();
     render(<GridMap city={MULBIT_CITY} activeLayerIds={ALL_LAYERS} selectedCandidateId={null} onSelectCandidate={vi.fn()} />);
@@ -303,6 +335,20 @@ describe('GridMap and CityDataTable contracts', () => {
     render(<CityDataTable city={MULBIT_CITY} activeLayerIds={ALL_LAYERS} selectedCandidateId="mulbit-b2" onSelectCandidate={vi.fn()} />);
     const table = screen.getByRole('table');
     expect(table.querySelector('caption')).toHaveTextContent('물빛시(가상 도시)');
+    expect([...table.querySelectorAll('thead th')].map((cell) => cell.textContent)).toEqual(['좌표', '인구·기존 보장', '도로·이동 단위', '위험 표지', '후보지·비용', '기존 시설']);
+    expect(table.querySelectorAll('tbody tr')).toHaveLength(MULBIT_CITY.nodes.length);
+    for (const node of MULBIT_CITY.nodes) {
+      const row = table.querySelector(`tbody tr[data-coordinate="${node.label}"]`);
+      expect(row).toBeInTheDocument();
+      const cells = row?.querySelectorAll(':scope > th, :scope > td');
+      expect(cells).toHaveLength(6);
+      expect(cells?.[0]).toHaveTextContent(node.label);
+      expect(cells?.[1]).toHaveTextContent(/인구|사람 토큰/);
+      expect(cells?.[2]).toHaveTextContent(/도로 연결/);
+      expect(cells?.[3]).toHaveTextContent(/위험 표지|빗물 고임/);
+      expect(cells?.[4]).toHaveTextContent(/후보지 없음|비용/);
+      expect(cells?.[5]).toHaveTextContent(/기존 시설/);
+    }
     const a1 = screen.getByRole('row', { name: /A1/ });
     expect(a1).toHaveTextContent('햇살 북쪽 구역');
     expect(a1).toHaveTextContent('사람 토큰 5');
@@ -381,5 +427,9 @@ describe('GridMap and CityDataTable contracts', () => {
     expect(getComputedStyle(table).overflowX).toBe('auto');
     const mediaRule = [...document.styleSheets].flatMap((sheet) => [...sheet.cssRules]).find((rule) => rule.cssText.includes('max-width: 600px'));
     expect(mediaRule).toBeDefined();
+    const focusRule = [...document.styleSheets].flatMap((sheet) => [...sheet.cssRules]).find((rule) => rule.cssText.includes(':focus-visible'));
+    expect(focusRule?.cssText).toMatch(/:focus-visible/);
+    expect(focusRule?.cssText).toMatch(/outline:\s*4px solid var\(--color-focus\)/);
+    expect(focusRule?.cssText).toMatch(/outline-offset:\s*3px/);
   });
 });
