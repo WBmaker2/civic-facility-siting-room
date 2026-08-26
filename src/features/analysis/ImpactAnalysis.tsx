@@ -6,6 +6,10 @@ import { validatePlacements } from '../../domain/placementRules';
 import { validatePlacementAnalysis } from '../../engine/validatePlacementAnalysis';
 import { AccessMetrics, AccessPathTable, EvidenceButton, ZoneNames } from './AccessMetrics';
 import { CalculationBasis } from './CalculationBasis';
+import type { GuidedActionId } from '../../domain/types';
+import { GuidedActionButton } from '../../navigation/GuidedActionButton';
+import { useReducedMotion } from '../../accessibility/useReducedMotion';
+import { FacilityRange } from '../range/FacilityRange';
 
 export interface ImpactAnalysisProps {
   city: CityScenario;
@@ -16,6 +20,7 @@ export interface ImpactAnalysisProps {
   onInspectMetric: (metricId: LearningEvidence['inspectedMetricIds'][number]) => void;
   onOpenResident?: () => void;
   canOpenResident?: boolean;
+  currentAction?: GuidedActionId;
 }
 
 type TabId = 'selection' | 'results';
@@ -42,7 +47,7 @@ const isValidImpactContext = (city: unknown, mission: unknown, placements: unkno
   }
 };
 
-function SelectionPanel({ city, mission, placements }: Pick<ImpactAnalysisProps, 'city' | 'mission' | 'placements'>) {
+function SelectionPanel({ city, mission, placements, reducedMotion }: Pick<ImpactAnalysisProps, 'city' | 'mission' | 'placements'> & { reducedMotion: boolean }) {
   return (
     <div className="impact-selection-panel-content">
       <h3>배치한 시설</h3>
@@ -50,7 +55,10 @@ function SelectionPanel({ city, mission, placements }: Pick<ImpactAnalysisProps,
         <ul>
           {placements.map((placement) => {
             const candidate = city.candidates.find((item) => item.id === placement.candidateId);
-            return <li key={placement.slotId}>{facilityLabels[placement.facilityKind]}: {candidate?.name ?? '확인할 수 없는 후보'} ({candidate?.coordinate.label ?? '좌표 없음'})</li>;
+            return <li key={placement.slotId}>
+              {facilityLabels[placement.facilityKind]}: {candidate?.name ?? '확인할 수 없는 후보'} ({candidate?.coordinate.label ?? '좌표 없음'})
+              {candidate !== undefined && <FacilityRange coordinate={candidate.coordinate} radiusUnits={mission.serviceThreshold} reducedMotion={reducedMotion} />}
+            </li>;
           })}
         </ul>
       )}
@@ -170,11 +178,12 @@ function useNarrowLayout() {
   return isNarrow;
 }
 
-export function ImpactAnalysis({ city, mission, placements, analysis, onAnalysis, onInspectMetric, onOpenResident = () => undefined, canOpenResident = false }: ImpactAnalysisProps) {
+export function ImpactAnalysis({ city, mission, placements, analysis, onAnalysis, onInspectMetric, onOpenResident = () => undefined, canOpenResident = false, currentAction = null }: ImpactAnalysisProps) {
   const [activeTab, setActiveTab] = useState<TabId>('results');
   const [announcement, setAnnouncement] = useState('');
   const [error, setError] = useState('');
   const isNarrow = useNarrowLayout();
+  const reducedMotion = useReducedMotion();
   const tabRefs = useRef<Record<TabId, HTMLButtonElement | null>>({ selection: null, results: null });
   const cityRecord = city !== null && typeof city === 'object' ? city as CityScenario : null;
   const missionRecord = mission !== null && typeof mission === 'object' ? mission as MissionDefinition : null;
@@ -184,7 +193,7 @@ export function ImpactAnalysis({ city, mission, placements, analysis, onAnalysis
       <section aria-labelledby="impact-analysis-heading" data-stage-id="analysis" role="region">
         <h2 id="impact-analysis-heading">영향 분석실</h2>
         <p role="alert">미션·도시·시설 배치 자료가 올바르지 않아 결과를 표시할 수 없습니다. 심의 접수에서 다시 확인해 주세요.</p>
-        <button type="button" disabled>영향 계산</button>
+        <GuidedActionButton actionId="calculate-impact" currentAction={currentAction} disabled onClick={() => undefined}>영향 계산</GuidedActionButton>
       </section>
     );
   }
@@ -227,7 +236,7 @@ export function ImpactAnalysis({ city, mission, placements, analysis, onAnalysis
       <p>{missionRecord.title}</p>
       <p className="model-limit-notice" role="note">{MODEL_LIMIT_NOTICE}</p>
       {!validContext && <p role="alert">미션·도시·시설 배치 자료가 올바르지 않아 결과를 표시할 수 없습니다. 심의 접수에서 다시 확인해 주세요.</p>}
-      <button type="button" className="impact-calculate-action" disabled={!validContext} onClick={calculate}>영향 계산</button>
+      <GuidedActionButton actionId="calculate-impact" currentAction={currentAction} disabled={!validContext} onClick={calculate}>영향 계산</GuidedActionButton>
       <button
         type="button"
         className="resident-view-action"
@@ -248,12 +257,12 @@ export function ImpactAnalysis({ city, mission, placements, analysis, onAnalysis
       <div className="impact-panels">
         {isNarrow ? (
           <div id="selection-panel" role="tabpanel" aria-labelledby="selection-tab" hidden={activeTab !== 'selection'}>
-            <SelectionPanel city={cityRecord} mission={missionRecord} placements={safePlacements} />
+            <SelectionPanel city={cityRecord} mission={missionRecord} placements={safePlacements} reducedMotion={reducedMotion} />
           </div>
         ) : (
           <section className="impact-selection-panel" aria-labelledby="selection-heading">
             <h3 id="selection-heading">선택 위치</h3>
-            <SelectionPanel city={city} mission={mission} placements={placements} />
+            <SelectionPanel city={city} mission={mission} placements={placements} reducedMotion={reducedMotion} />
           </section>
         )}
         {isNarrow ? (

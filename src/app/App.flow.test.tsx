@@ -106,12 +106,12 @@ describe('App learner flow through impact analysis', () => {
     await user.type(screen.getByLabelText('예상되는 반론'), '다른 구역의 이동 부담이 커질 수 있습니다.');
     await user.type(screen.getByLabelText('보완 방법'), '단계적 안내를 함께 마련하겠습니다.');
     expect(screen.queryByRole('heading', { name: '완성한 입지 심의 의견서' })).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: '의견서 완성' }));
+    await user.click(screen.getByRole('button', { name: '의견서 작성' }));
     expect(screen.getByRole('heading', { name: '완성한 입지 심의 의견서' })).toBeInTheDocument();
     await user.click(screen.getByLabelText('선택안의 근거'));
     await user.keyboard('{End} 수정');
     expect(screen.queryByRole('heading', { name: '완성한 입지 심의 의견서' })).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: '의견서 완성' }));
+    await user.click(screen.getByRole('button', { name: '의견서 작성' }));
     expect(screen.getByRole('heading', { name: '완성한 입지 심의 의견서' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: '처음부터 다시 시작' }));
     expect(screen.getByRole('combobox', { name: '미션 선택' })).toHaveValue('');

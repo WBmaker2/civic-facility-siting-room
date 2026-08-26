@@ -68,7 +68,7 @@ describe('ImpactAnalysis responsive semantics', () => {
     const view = renderAnalysis();
     expect(screen.getByRole('tablist')).toBeInTheDocument();
     expect(screen.getByRole('tabpanel', { name: '결과표' })).toBeInTheDocument();
-    expect(listeners.size).toBe(1);
+    expect(listeners.size).toBe(2);
 
     Object.defineProperty(media, 'matches', { configurable: true, value: false });
     act(() => {
@@ -79,7 +79,7 @@ describe('ImpactAnalysis responsive semantics', () => {
     expect(screen.getByRole('region', { name: '결과표' })).toBeInTheDocument();
 
     view.unmount();
-    expect(media.removeEventListener).toHaveBeenCalledTimes(1);
+    expect(media.removeEventListener).toHaveBeenCalledTimes(2);
     expect(listeners.size).toBe(0);
   });
 });

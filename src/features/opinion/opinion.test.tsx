@@ -130,7 +130,7 @@ describe('structured siting opinion', () => {
     const onSubmit = vi.fn();
     const onChange = vi.fn();
     render(<SitingOpinionForm draft={draftFor(proposals)} proposals={proposals} intakePriorityId="access-equity" onChange={onChange} onSubmit={onSubmit} />);
-    await user.click(screen.getByRole('button', { name: '의견서 완성' }));
+    await user.click(screen.getByRole('button', { name: '의견서 작성' }));
     expect(onSubmit).toHaveBeenCalledTimes(1);
     await user.click(screen.getByRole('checkbox', { name: '위험 조건' }));
     expect(onChange).toHaveBeenCalled();
@@ -140,7 +140,7 @@ describe('structured siting opinion', () => {
     cleanup();
     onSubmit.mockClear();
     render(<SitingOpinionForm draft={{ ...draftFor(proposals), priorityId: 'cost' }} proposals={proposals} intakePriorityId="access-equity" onSubmit={onSubmit} />);
-    expect(screen.getByRole('button', { name: '의견서 완성' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: '의견서 작성' })).toBeDisabled();
     expect(onSubmit).not.toHaveBeenCalled();
     expect(screen.getByRole('group', { name: '우선 기준' })).toHaveAttribute('aria-describedby', 'opinion-error-priority');
   });

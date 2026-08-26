@@ -8,6 +8,8 @@ import './styles/tokens.css';
 import './styles/global.css';
 // @ts-expect-error CSS side-effect import is resolved by Vite.
 import './styles/responsive.css';
+// @ts-expect-error Vite resolves CSS side-effect imports in the test runtime.
+import './styles/motion.css';
 
 const rootElement = document.getElementById('root');
 

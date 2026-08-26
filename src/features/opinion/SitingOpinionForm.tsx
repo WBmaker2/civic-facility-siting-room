@@ -1,6 +1,8 @@
 import { PRIVACY_NOTICE, SOCIAL_SAFETY_NOTICE } from '../../content/learnerCopy';
 import type { CityScenario, OpinionDraft, PriorityId, ProposalSnapshot } from '../../domain/types';
 import { cloneOpinionDraft, cloneOpinionProposals, isOpinionTextWithinLimit, validateOpinion, type OpinionErrorKey } from './validateOpinion';
+import type { GuidedActionId } from '../../domain/types';
+import { GuidedActionButton } from '../../navigation/GuidedActionButton';
 
 export interface SitingOpinionFormProps {
   draft: OpinionDraft;
@@ -12,6 +14,7 @@ export interface SitingOpinionFormProps {
   onDraftChange?: (draft: OpinionDraft) => void;
   onSubmit?: () => void;
   onSave?: () => void;
+  currentAction?: GuidedActionId;
 }
 
 const PRIORITIES: readonly { id: PriorityId; label: string }[] = [
@@ -30,7 +33,7 @@ const METRICS = [
 const priorityLabel = (id: PriorityId | null): string => PRIORITIES.find((priority) => priority.id === id)?.label ?? '선택한 기준';
 const errorId = (key: OpinionErrorKey): string => `opinion-error-${key}`;
 
-export function SitingOpinionForm({ draft, proposals, intakePriorityId, priorityId, city, onChange, onDraftChange, onSubmit, onSave }: SitingOpinionFormProps) {
+export function SitingOpinionForm({ draft, proposals, intakePriorityId, priorityId, city, onChange, onDraftChange, onSubmit, onSave, currentAction = null }: SitingOpinionFormProps) {
   const intake = intakePriorityId ?? priorityId ?? null;
   const safeDraft = cloneOpinionDraft(draft);
   const safeProposals = cloneOpinionProposals(proposals);
@@ -112,7 +115,7 @@ export function SitingOpinionForm({ draft, proposals, intakePriorityId, priority
       {textField('counterargument', '예상되는 반론', '이에 대한 반론은 ___입니다.')}
       {textField('mitigation', '보완 방법', '이를 보완하기 위해 ___을 함께 제안합니다.')}
 
-      <button type="button" disabled={!validation.complete || safeDraft.priorityId !== intake} onClick={() => { if (validation.complete && safeDraft.priorityId === intake) (onSubmit ?? onSave)?.(); }}>의견서 완성</button>
+      <GuidedActionButton actionId="write-opinion" currentAction={currentAction} disabled={!validation.complete || safeDraft.priorityId !== intake} onClick={() => { if (validation.complete && safeDraft.priorityId === intake) (onSubmit ?? onSave)?.(); }}>의견서 작성</GuidedActionButton>
       {!validation.complete && <p role="status">필수 조건과 세 문장 내용을 모두 채우면 의견서를 완성할 수 있습니다.</p>}
     </section>
   );

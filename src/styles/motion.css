@@ -1,0 +1,53 @@
+:root { --focus-strong: var(--color-focus); }
+
+.gi-pulse {
+  animation: gi-pulse 2s ease-in-out infinite;
+}
+
+.guided-action-badge {
+  display: inline-block;
+  margin-left: var(--space-2);
+  border-radius: 999px;
+  background: var(--color-accent-soft);
+  color: var(--color-ink);
+  font-size: 0.8em;
+  font-weight: 700;
+  padding: 0 var(--space-2);
+  white-space: nowrap;
+}
+
+@keyframes gi-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(180 72 0 / 0%); outline-color: rgb(180 72 0 / 35%); }
+  50% { box-shadow: 0 0 0 0.55rem rgb(180 72 0 / 20%); outline: 3px solid rgb(180 72 0 / 45%); outline-offset: 3px; }
+}
+
+.facility-range {
+  display: grid;
+  gap: var(--space-1);
+  margin: var(--space-2) 0;
+  border: 2px dashed var(--color-accent);
+  border-radius: var(--radius);
+  padding: var(--space-2);
+  background: var(--color-accent-soft);
+}
+
+.facility-range--spread { animation: range-spread 700ms ease-out both; }
+
+@keyframes range-spread {
+  from { opacity: 0.55; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gi-pulse,
+  .facility-range {
+    animation: none;
+    transition: none;
+  }
+
+  [data-guided='true'],
+  .facility-range {
+    outline: 3px solid var(--focus-strong);
+    outline-offset: 3px;
+  }
+}

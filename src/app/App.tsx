@@ -15,6 +15,8 @@ import { cityForId, missionForId } from '../state/sessionReducer';
 import { selectOpinionReady, selectStageGate } from '../state/sessionReducer';
 import { SitingOpinionForm } from '../features/opinion/SitingOpinionForm';
 import { OpinionSummary } from '../features/opinion/OpinionSummary';
+import { getGuidedAction } from '../navigation/guidedAction';
+import { GuidedActionButton } from '../navigation/GuidedActionButton';
 
 function StagePlaceholder() {
   const { state } = useSession();
@@ -30,6 +32,7 @@ function StagePlaceholder() {
 function SessionShell() {
   const { state, dispatch } = useSession();
   const [opinionSubmitted, setOpinionSubmitted] = useState(false);
+  const currentAction = opinionSubmitted ? null : getGuidedAction(state);
   const city = cityForId(state.cityId);
   const mission = missionForId(state.missionId);
   const proposalInput = (label: 'A안' | 'B안') => {
@@ -46,7 +49,7 @@ function SessionShell() {
   const stage = state.stage === 'intake'
     ? <ReviewIntake />
       : state.stage === 'data-room'
-        ? <CityDataRoom />
+        ? <CityDataRoom currentAction={currentAction} />
         : state.stage === 'placement'
           ? <FacilityPlacementPanel />
           : state.stage === 'analysis' && city !== undefined && mission !== undefined
@@ -59,6 +62,7 @@ function SessionShell() {
               onInspectMetric={(metricId) => dispatch({ type: 'inspect-metric', metricId })}
               onOpenResident={() => dispatch({ type: 'go-to-stage', stage: 'resident-view' })}
               canOpenResident={state.evidence.inspectedMetricIds.includes('average') && state.evidence.inspectedMetricIds.includes('maximum')}
+              currentAction={currentAction}
             />
             : state.stage === 'analysis'
               ? <section aria-labelledby="impact-analysis-heading" data-stage-id="analysis" role="region">
@@ -94,6 +98,7 @@ function SessionShell() {
                       city={city}
                       onChange={(opinion) => { setOpinionSubmitted(false); dispatch({ type: 'set-opinion', opinion }); }}
                       onSubmit={() => setOpinionSubmitted(true)}
+                      currentAction={currentAction}
                     />
                     {opinionSubmitted && selectOpinionReady(state) && <OpinionSummary
                       draft={state.opinion}
@@ -112,7 +117,7 @@ function SessionShell() {
       <p role="note">{MODEL_LIMIT_NOTICE}</p>
       <ProgressStepper currentStage={state.stage} />
       {stage}
-      {opinionAction && <button type="button" disabled={!selectStageGate(state, 'resident-view')} onClick={() => { dispatch({ type: 'set-opinion', opinion: { ...state.opinion, priorityId: state.priorityId } }); dispatch({ type: 'go-to-stage', stage: 'opinion' }); }}>의견서 작성</button>}
+      {opinionAction && <GuidedActionButton actionId="write-opinion" currentAction={currentAction} disabled={!selectStageGate(state, 'resident-view')} onClick={() => { dispatch({ type: 'set-opinion', opinion: { ...state.opinion, priorityId: state.priorityId } }); dispatch({ type: 'go-to-stage', stage: 'opinion' }); }}>의견서 작성</GuidedActionButton>}
     </main>
   );
 }

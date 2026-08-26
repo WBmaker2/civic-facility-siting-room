@@ -6,6 +6,8 @@ import { useSession } from '../../state/SessionProvider';
 import { LayerLegend } from './LayerLegend';
 import { CityDataTable } from './CityDataTable';
 import { GridMap } from './GridMap';
+import type { GuidedActionId } from '../../domain/types';
+import { GuidedActionButton } from '../../navigation/GuidedActionButton';
 
 const LAYERS: ReadonlyArray<{ id: DataLayerId; label: string; prompt: string }> = [
   { id: 'population', label: '인구', prompt: '사람 토큰이 있는 구역을 봅니다.' },
@@ -15,7 +17,11 @@ const LAYERS: ReadonlyArray<{ id: DataLayerId; label: string; prompt: string }> 
   { id: 'existing-facilities', label: '기존 시설', prompt: '이미 있는 시설과 서비스 공백을 봅니다.' },
 ];
 
-export function CityDataRoom() {
+export interface CityDataRoomProps {
+  currentAction?: GuidedActionId;
+}
+
+export function CityDataRoom({ currentAction = null }: CityDataRoomProps) {
   const { state, dispatch } = useSession();
   const city = cityForId(state.cityId);
   const [viewMode, setViewMode] = useState<'map' | 'table'>('map');
@@ -119,9 +125,9 @@ export function CityDataRoom() {
         </div>
       )}
 
-      <button type="button" disabled={!canConfirm} onClick={() => dispatch({ type: 'go-to-stage', stage: 'placement' })}>
+      <GuidedActionButton actionId="review-layers" currentAction={currentAction} disabled={!canConfirm} onClick={() => dispatch({ type: 'go-to-stage', stage: 'placement' })}>
         자료층 확인
-      </button>
+      </GuidedActionButton>
       {!validReviewContext && (
         <div role="alert">
           <p>미션·배정 도시·우선순위가 확인되지 않아 자료층을 확정할 수 없습니다. 심의 접수에서 다시 선택해 주세요.</p>
