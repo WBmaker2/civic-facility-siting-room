@@ -46,6 +46,28 @@ describe('proposal comparison', () => {
       overlapCountDelta: 0, moreInconveniencedZoneIds: ['mulbit-hill', 'mulbit-north', 'mulbit-west'],
     });
     expect(() => compareProposals(snapshot('A안'), snapshot('A안'))).toThrow();
+    expect(() => compareProposals(snapshot('B안', placementsB), snapshot('A안'))).toThrow();
+  });
+
+  it('rejects accessor snapshots without executing a conditionResults getter', () => {
+    const first = snapshot('A안');
+    const second = snapshot('B안', placementsB);
+    let reads = 0;
+    const assessmentWithGetter = { ...first.assessment };
+    Object.defineProperty(assessmentWithGetter, 'conditionResults', {
+      configurable: true,
+      enumerable: true,
+      get: () => {
+        reads += 1;
+        if (reads >= 3) throw new Error('reviewer getter failure');
+        return first.assessment.conditionResults;
+      },
+    });
+    const malformed = { ...first, assessment: assessmentWithGetter } as ProposalSnapshot;
+    expect(() => compareProposals(malformed, second)).toThrow();
+    render(<AlternativeComparison city={CITIES.mulbit} mission={mission} first={malformed} second={second} comparison={null} />);
+    expect(reads).toBe(0);
+    expect(screen.getByRole('alert')).toHaveTextContent('비교 자료를 표시할 수 없습니다');
   });
 
   it('reports exact newly reached and newly unreachable zone IDs for a disconnected island alternative', () => {

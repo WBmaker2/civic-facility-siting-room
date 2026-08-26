@@ -57,6 +57,12 @@ describe('App learner flow through impact analysis', () => {
     await user.click(screen.getByRole('radio', { name: /바람 동쪽 구역/ }));
     await user.click(screen.getByRole('button', { name: 'B안 저장' }));
     expect(screen.getByRole('heading', { name: 'A안과 B안 비교' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'A안 저장' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'B안 저장' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '후보 수정하여 B안 만들기' })).not.toBeInTheDocument();
+    expect(screen.getByText('도서관: 느린 강변 터 (B2)')).toBeInTheDocument();
+    expect(screen.getByText('2.7 이동 단위')).toBeInTheDocument();
+    expect(screen.getByText('예산 토큰 3개 안에 놓기: 충족 — 배치 비용 1토큰 / 공개 한도 3토큰입니다.')).toBeInTheDocument();
     expect(screen.getByText('A안은 ___을 지키지만 ___이 불리하고, B안은 ___을 바꿉니다.')).toBeInTheDocument();
     expect(screen.queryByText(/승자|최적|정답|순위|점수/)).not.toBeInTheDocument();
   });

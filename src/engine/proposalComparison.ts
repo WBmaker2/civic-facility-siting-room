@@ -22,13 +22,14 @@ const isStrictArray = (value: unknown): value is unknown[] => {
   if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype) return false;
   const array = value as unknown[];
   const lengthDescriptor = Object.getOwnPropertyDescriptor(array, 'length');
+  const length = lengthDescriptor !== undefined && 'value' in lengthDescriptor ? lengthDescriptor.value : NaN;
   if (lengthDescriptor === undefined || !('value' in lengthDescriptor)
-    || lengthDescriptor.enumerable || lengthDescriptor.configurable || lengthDescriptor.value !== array.length
+    || lengthDescriptor.enumerable || lengthDescriptor.configurable || !Number.isSafeInteger(length)
     || (!lengthDescriptor.writable && !Object.isFrozen(array))) return false;
   const frozen = Object.isFrozen(array);
   const keys = Reflect.ownKeys(array);
-  if (keys.length !== array.length + 1 || keys.some((key) => key !== 'length' && (typeof key !== 'string' || !/^\d+$/.test(key) || Number(key) >= array.length))) return false;
-  for (let index = 0; index < array.length; index += 1) {
+  if (keys.length !== length + 1 || keys.some((key) => key !== 'length' && (typeof key !== 'string' || !/^\d+$/.test(key) || Number(key) >= length))) return false;
+  for (let index = 0; index < length; index += 1) {
     const descriptor = Object.getOwnPropertyDescriptor(array, String(index));
     if (descriptor === undefined || !descriptor.enumerable || !('value' in descriptor)
       || (!(descriptor.writable && descriptor.configurable) && !frozen)) return false;
@@ -47,12 +48,13 @@ const cloneValue = (value: unknown, seen = new WeakSet<object>()): unknown => {
   if (Array.isArray(value)) {
     if (!isStrictArray(value)) throw new TypeError('Malformed proposal array.');
     const descriptor = Object.getOwnPropertyDescriptor(value, 'length');
-    if (descriptor === undefined || !('value' in descriptor) || descriptor.value !== value.length) throw new TypeError('Malformed proposal array.');
-    for (let index = 0; index < value.length; index += 1) {
+    if (descriptor === undefined || !('value' in descriptor) || !Number.isSafeInteger(descriptor.value)) throw new TypeError('Malformed proposal array.');
+    const result: unknown[] = [];
+    for (let index = 0; index < descriptor.value; index += 1) {
       const itemDescriptor = Object.getOwnPropertyDescriptor(value, String(index));
       if (itemDescriptor === undefined || !itemDescriptor.enumerable || !('value' in itemDescriptor)) throw new TypeError('Malformed proposal array.');
+      result.push(cloneValue(itemDescriptor.value, seen));
     }
-    const result = value.map((item) => cloneValue(item, seen));
     seen.delete(value);
     return result;
   }
@@ -121,6 +123,41 @@ const validateSnapshot = (snapshot: unknown): snapshot is ProposalSnapshot => {
   }
 };
 
+const validateComparison = (comparison: unknown): comparison is ProposalComparison => {
+  try {
+    if (comparison === null || typeof comparison !== 'object' || !isPlainRecord(comparison)
+      || !expectedKeys(comparison, ['firstProposalId', 'secondProposalId', 'averageDelta', 'maximumDelta', 'newlyReachedZoneIds', 'newlyUnreachableZoneIds', 'riskCountDelta', 'costTokenDelta', 'overlapCountDelta', 'moreInconveniencedZoneIds'])) return false;
+    const record = comparison as unknown as Record<string, unknown>;
+    const nullableNumber = (value: unknown): boolean => value === null || (typeof value === 'number' && Number.isFinite(value));
+    const stringArray = (value: unknown): value is string[] => isStrictArray(value) && value.every((item) => typeof item === 'string');
+    return record.firstProposalId === 'proposal-a' && record.secondProposalId === 'proposal-b'
+      && nullableNumber(record.averageDelta) && nullableNumber(record.maximumDelta)
+      && typeof record.riskCountDelta === 'number' && Number.isFinite(record.riskCountDelta)
+      && typeof record.costTokenDelta === 'number' && Number.isFinite(record.costTokenDelta)
+      && typeof record.overlapCountDelta === 'number' && Number.isFinite(record.overlapCountDelta)
+      && stringArray(record.newlyReachedZoneIds) && stringArray(record.newlyUnreachableZoneIds)
+      && stringArray(record.moreInconveniencedZoneIds);
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Validates and obtains a detached snapshot before any caller can inspect it.
+ * Descriptor reads make accessors fail closed without invoking their getters.
+ */
+export function cloneProposalSnapshot(snapshot: ProposalSnapshot): ProposalSnapshot {
+  const cloned = cloneValue(snapshot);
+  if (!validateSnapshot(cloned)) throw new TypeError('Cannot clone a malformed proposal.');
+  return freezeDeep(cloned);
+}
+
+export function cloneProposalComparison(comparison: ProposalComparison): ProposalComparison {
+  const cloned = cloneValue(comparison);
+  if (!validateComparison(cloned)) throw new TypeError('Cannot clone a malformed comparison.');
+  return freezeDeep(cloned);
+}
+
 export function createProposalSnapshot(
   label: string,
   placements: FacilityPlacement[],
@@ -128,18 +165,22 @@ export function createProposalSnapshot(
   assessment: ProposalAssessment,
 ): ProposalSnapshot {
   if (label !== 'A안' && label !== 'B안') throw new RangeError('Proposal label must be A안 or B안.');
-  if (!isStrictArray(placements) || !validateAssessment(assessment)) throw new TypeError('Malformed proposal input.');
-  const city = analysis !== null && typeof analysis === 'object' && typeof analysis.cityId === 'string' && own(CITIES, analysis.cityId)
-    ? CITIES[analysis.cityId as keyof typeof CITIES] : undefined;
-  const mission = analysis !== null && typeof analysis === 'object' && typeof analysis.missionId === 'string' && own(MISSIONS, analysis.missionId)
-    ? MISSIONS[analysis.missionId as keyof typeof MISSIONS] : undefined;
-  if (city === undefined || mission === undefined || !validatePlacementAnalysis(city, mission, placements, analysis)) throw new TypeError('Analysis does not match the proposal.');
+  const clonedPlacements = cloneValue(placements);
+  const clonedAnalysis = cloneValue(analysis);
+  const clonedAssessment = cloneValue(assessment);
+  if (!isStrictArray(clonedPlacements) || !validateAssessment(clonedAssessment)) throw new TypeError('Malformed proposal input.');
+  const analysisRecord = clonedAnalysis as Partial<PlacementAnalysis>;
+  const city = analysisRecord !== null && typeof analysisRecord === 'object' && typeof analysisRecord.cityId === 'string' && own(CITIES, analysisRecord.cityId)
+    ? CITIES[analysisRecord.cityId as keyof typeof CITIES] : undefined;
+  const mission = analysisRecord !== null && typeof analysisRecord === 'object' && typeof analysisRecord.missionId === 'string' && own(MISSIONS, analysisRecord.missionId)
+    ? MISSIONS[analysisRecord.missionId as keyof typeof MISSIONS] : undefined;
+  if (city === undefined || mission === undefined || !validatePlacementAnalysis(city, mission, clonedPlacements, clonedAnalysis)) throw new TypeError('Analysis does not match the proposal.');
   const proposal: ProposalSnapshot = {
     id: LABEL_TO_ID[label as 'A안' | 'B안'],
     label,
-    placements: cloneValue(placements) as FacilityPlacement[],
-    analysis: cloneValue(analysis) as PlacementAnalysis,
-    assessment: cloneValue(assessment) as ProposalAssessment,
+    placements: clonedPlacements as FacilityPlacement[],
+    analysis: clonedAnalysis as PlacementAnalysis,
+    assessment: clonedAssessment as ProposalAssessment,
   };
   return freezeDeep(proposal);
 }
@@ -158,8 +199,7 @@ const uniqueZoneRows = (metrics: AccessMetrics): Map<string, ZoneTravelResult> =
 
 const delta = (second: number | null, first: number | null): number | null => second === null || first === null ? null : Math.round((second - first) * 10) / 10;
 
-export function compareProposals(first: ProposalSnapshot, second: ProposalSnapshot): ProposalComparison {
-  if (!validateSnapshot(first) || !validateSnapshot(second)) throw new TypeError('Cannot compare a malformed proposal.');
+const compareTrustedProposals = (first: ProposalSnapshot, second: ProposalSnapshot): ProposalComparison => {
   if (first.id === second.id || first.label === second.label) throw new RangeError('Proposal IDs and labels must be distinct.');
   if ((first.id !== 'proposal-a' || second.id !== 'proposal-b') || (first.label !== 'A안' || second.label !== 'B안')) throw new RangeError('Proposals must be compared in A then B order.');
   if (first.analysis.cityId !== second.analysis.cityId || first.analysis.missionId !== second.analysis.missionId) throw new RangeError('Proposals must share a mission context.');
@@ -191,4 +231,10 @@ export function compareProposals(first: ProposalSnapshot, second: ProposalSnapsh
     overlapCountDelta: second.analysis.overlapZoneIds.length - first.analysis.overlapZoneIds.length,
     moreInconveniencedZoneIds: moreInconveniencedZoneIds.sort(),
   };
+};
+
+export function compareProposals(first: ProposalSnapshot, second: ProposalSnapshot): ProposalComparison {
+  const clonedFirst = cloneProposalSnapshot(first);
+  const clonedSecond = cloneProposalSnapshot(second);
+  return cloneProposalComparison(compareTrustedProposals(clonedFirst, clonedSecond));
 }

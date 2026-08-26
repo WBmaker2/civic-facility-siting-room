@@ -237,6 +237,7 @@ describe('sessionReducer', () => {
     state = sessionReducer(state, { type: 'go-to-stage', stage: 'resident-view' });
     expect(state.stage).toBe('resident-view');
     state = sessionReducer(state, { type: 'select-underserved-zone', zoneId: 'mulbit-north' });
+    expect(sessionReducer(state, { type: 'save-proposal', proposal: proposal(state, 'B안', [{ ...libraryPlacement, candidateId: 'mulbit-b2' }]) })).toBe(state);
     state = sessionReducer(state, { type: 'save-proposal', proposal: proposal(state, 'A안') });
     state = sessionReducer(state, { type: 'go-to-stage', stage: 'placement' });
     state = sessionReducer(state, { type: 'place-facility', placement: { ...libraryPlacement, candidateId: 'mulbit-b2' } });
