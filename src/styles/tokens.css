@@ -1,0 +1,20 @@
+:root {
+  color-scheme: light;
+  --color-ink: #263238;
+  --color-muted: #52636b;
+  --color-paper: #fffdf7;
+  --color-surface: #ffffff;
+  --color-surface-soft: #f2f7f4;
+  --color-border: #b8c9c2;
+  --color-accent: #176b87;
+  --color-accent-soft: #dff2f3;
+  --color-focus: #b44800;
+  --color-risk: #7c3f00;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --radius: 0.75rem;
+  --shadow-soft: 0 0.2rem 0.7rem rgb(38 50 56 / 10%);
+}

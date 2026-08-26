@@ -1,6 +1,13 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './app/App';
+// Vite handles these side-effect stylesheet imports; TypeScript has no CSS module declaration in this MVP.
+// @ts-expect-error CSS side-effect import is resolved by Vite.
+import './styles/tokens.css';
+// @ts-expect-error CSS side-effect import is resolved by Vite.
+import './styles/global.css';
+// @ts-expect-error CSS side-effect import is resolved by Vite.
+import './styles/responsive.css';
 
 const rootElement = document.getElementById('root');
 

@@ -1,0 +1,15 @@
+@media (max-width: 600px) {
+  main { width: min(100% - 1rem, 72rem); padding-top: var(--space-4); }
+  .city-data-views { padding: var(--space-2); }
+  .view-tabs { position: sticky; top: 0; z-index: 1; background: var(--color-surface); }
+  .view-tabs button { flex: 1; }
+  .city-grid { min-width: 23rem; }
+  .grid-row { grid-template-columns: repeat(5, minmax(4.5rem, 1fr)); }
+  .grid-cell { min-height: 6rem; padding: var(--space-1); font-size: 0.86rem; }
+  .grid-marker { font-size: 0.72rem; }
+  .city-data-table { min-width: 58rem; }
+}
+
+@media (min-width: 601px) {
+  .view-tabs button { min-width: 8rem; }
+}

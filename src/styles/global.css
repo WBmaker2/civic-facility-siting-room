@@ -1,0 +1,99 @@
+* { box-sizing: border-box; }
+
+html { min-width: 0; }
+
+body {
+  margin: 0;
+  min-width: 0;
+  overflow-x: hidden;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  line-height: 1.55;
+}
+
+button, input { font: inherit; }
+
+button, input[type="checkbox"], input[type="radio"] { min-width: 44px; min-height: 44px; }
+
+button {
+  border: 2px solid var(--color-accent);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  cursor: pointer;
+  padding: var(--space-2) var(--space-3);
+}
+
+button:disabled { cursor: not-allowed; opacity: 0.55; }
+
+button:focus-visible, input:focus-visible, [role="grid"]:focus-visible, [role="gridcell"]:focus-visible {
+  outline: 4px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+main {
+  width: min(100% - 2rem, 72rem);
+  margin: 0 auto;
+  padding: var(--space-6) 0 4rem;
+}
+
+fieldset, .city-data-views, .city-grid, .city-table-wrap {
+  margin: var(--space-4) 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-soft);
+}
+
+fieldset { padding: var(--space-4); }
+fieldset label { display: block; margin: var(--space-2) 0; }
+fieldset input { vertical-align: middle; margin-right: var(--space-2); }
+
+.city-data-views { padding: var(--space-4); }
+.view-tabs { display: flex; gap: var(--space-2); margin-bottom: var(--space-3); }
+.view-tabs button[aria-selected="true"] { background: var(--color-accent-soft); font-weight: 700; }
+.selected-coordinate, .grid-coordinate-status { font-weight: 700; }
+
+.city-grid {
+  display: grid;
+  min-width: 34rem;
+  overflow: auto;
+  padding: var(--space-2);
+  box-shadow: none;
+}
+
+.grid-row { display: grid; grid-template-columns: repeat(5, minmax(8rem, 1fr)); }
+.grid-cell {
+  display: flex;
+  min-height: 8rem;
+  flex-direction: column;
+  gap: var(--space-1);
+  overflow-wrap: anywhere;
+  border: 1px solid var(--color-border);
+  padding: var(--space-2);
+  background-color: var(--color-surface);
+}
+.grid-cell.is-active { box-shadow: inset 0 0 0 4px var(--color-focus); }
+.grid-cell.is-selected { border-color: var(--color-accent); background: var(--color-accent-soft); }
+.grid-cell[role="gridcell"] { cursor: pointer; }
+.grid-marker { display: block; font-size: 0.82rem; }
+.pattern-dots { letter-spacing: 0.08em; }
+.pattern-lines { text-decoration: underline; text-decoration-style: dashed; }
+.pattern-waves { border-bottom: 3px double var(--color-risk); color: var(--color-risk); }
+.pattern-crosshatch { background: repeating-linear-gradient(45deg, transparent 0 5px, rgb(124 63 0 / 30%) 5px 7px); color: var(--color-risk); }
+.pattern-ring { border: 2px solid currentColor; border-radius: 999px; padding: 0 var(--space-1); }
+.selected-marker { font-weight: 700; color: var(--color-accent); }
+.grid-help, .grid-active-details, .table-note { color: var(--color-muted); font-size: 0.9rem; }
+.grid-active-details { max-width: 60rem; }
+
+.city-table-wrap { padding: var(--space-2); box-shadow: none; }
+.city-table-scroll { max-width: 100%; overflow-x: auto; }
+.city-data-table { width: 100%; min-width: 62rem; border-collapse: collapse; }
+.city-data-table caption { padding: var(--space-3); text-align: left; font-weight: 700; }
+.city-data-table th, .city-data-table td { border: 1px solid var(--color-border); padding: var(--space-3); vertical-align: top; text-align: left; }
+.city-data-table thead th { background: var(--color-surface-soft); }
+.city-data-table tbody th { white-space: nowrap; }
+.candidate-choice { display: flex; align-items: center; gap: var(--space-2); min-width: 12rem; }
+.candidate-choice input { flex: 0 0 44px; }
+.table-risk { display: block; min-width: 12rem; }

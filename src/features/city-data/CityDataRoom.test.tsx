@@ -107,4 +107,83 @@ describe('CityDataRoom', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(/미션.*배정 도시.*우선순위/);
     expect(screen.queryByText(/undefined의 가상 자료/)).not.toBeInTheDocument();
   });
+
+  it('provides a labeled keyboard grid with a single active descendant', async () => {
+    const user = await renderSessionAtDataRoom();
+    const grid = screen.getByRole('grid', { name: /물빛시.*격자/ });
+
+    expect(grid).toHaveAttribute('tabindex', '0');
+    expect(grid).toHaveAttribute('aria-activedescendant', 'mulbit-cell-a1');
+    expect(screen.getByText('현재 좌표: A1')).toBeInTheDocument();
+    expect(grid.querySelectorAll('[tabindex="0"]')).toHaveLength(0);
+
+    grid.focus();
+    await user.keyboard('{ArrowRight}{ArrowDown}');
+    expect(document.activeElement).toBe(grid);
+    expect(screen.getByText('현재 좌표: B2')).toBeInTheDocument();
+    expect(grid).toHaveAttribute('aria-activedescendant', 'mulbit-cell-b2');
+  });
+
+  it('clamps grid movement and supports Home and End within the current row', async () => {
+    const user = await renderSessionAtDataRoom();
+    const grid = screen.getByRole('grid', { name: /물빛시.*격자/ });
+    grid.focus();
+
+    await user.keyboard('{ArrowLeft}{ArrowUp}{End}');
+    expect(grid).toHaveAttribute('aria-activedescendant', 'mulbit-cell-e1');
+    await user.keyboard('{Home}');
+    expect(grid).toHaveAttribute('aria-activedescendant', 'mulbit-cell-a1');
+  });
+
+  it('selects a candidate with Enter or Space while focus remains on the grid', async () => {
+    const user = await renderSessionAtDataRoom();
+    const grid = screen.getByRole('grid', { name: /물빛시.*격자/ });
+    grid.focus();
+    await user.keyboard('{ArrowRight}{ArrowDown}{Enter}');
+    expect(screen.getByText('현재 선택 좌표: B2')).toBeInTheDocument();
+    expect(document.activeElement).toBe(grid);
+
+    await user.keyboard('{Space}');
+    expect(document.activeElement).toBe(grid);
+    expect(grid).toHaveAttribute('aria-activedescendant', 'mulbit-cell-b2');
+  });
+
+  it('exposes equivalent table data and candidate radio selection', async () => {
+    const user = await renderSessionAtDataRoom();
+    await user.click(screen.getByRole('tab', { name: '표 보기' }));
+
+    const table = screen.getByRole('table', { name: /물빛시.*도시 자료/ });
+    expect(table.querySelector('caption')).toHaveTextContent(/물빛시/);
+    expect(table).toHaveTextContent('A1');
+    expect(table).toHaveTextContent('햇살 북쪽 구역');
+    expect(table).toHaveTextContent('사람 토큰 5');
+    expect(table).toHaveTextContent('도로 연결');
+    expect(table).toHaveTextContent('기존 보장 시설 없음');
+    expect(table).toHaveTextContent('후보지 없음');
+
+    const candidate = screen.getByRole('radio', { name: /느린 강변 터.*비용 1/ });
+    await user.click(candidate);
+    expect(candidate).toBeChecked();
+    expect(screen.getByText('현재 선택 좌표: B2')).toBeInTheDocument();
+  });
+
+  it('uses text, icon, and pattern encoding for a risk cell', async () => {
+    const user = await renderSessionAtDataRoom();
+    await user.click(screen.getByRole('checkbox', { name: '가상 위험 표지' }));
+
+    const riskCell = screen.getByRole('gridcell', { name: /A4.*빗물 고임/ });
+    expect(riskCell).toHaveAttribute('data-pattern', 'waves');
+    expect(riskCell).toHaveTextContent('≋');
+    expect(riskCell.querySelector('[data-pattern="waves"]')).toBeInTheDocument();
+  });
+
+  it('renders only the selected view panel while tabs remain switchable', async () => {
+    const user = await renderSessionAtDataRoom();
+    expect(screen.getByRole('tabpanel', { name: '지도 보기' })).toBeInTheDocument();
+    expect(screen.queryByRole('tabpanel', { name: '표 보기' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: '표 보기' }));
+    expect(screen.queryByRole('tabpanel', { name: '지도 보기' })).not.toBeInTheDocument();
+    expect(screen.getByRole('tabpanel', { name: '표 보기' })).toBeInTheDocument();
+  });
 });

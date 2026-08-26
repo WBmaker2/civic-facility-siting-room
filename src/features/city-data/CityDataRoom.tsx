@@ -1,8 +1,11 @@
+import { useState } from 'react';
 import type { DataLayerId } from '../../domain/types';
 import { PRIVACY_NOTICE } from '../../content/learnerCopy';
 import { cityForId, hasValidIntakeContext } from '../../state/sessionReducer';
 import { useSession } from '../../state/SessionProvider';
 import { LayerLegend } from './LayerLegend';
+import { CityDataTable } from './CityDataTable';
+import { GridMap } from './GridMap';
 
 const LAYERS: ReadonlyArray<{ id: DataLayerId; label: string; prompt: string }> = [
   { id: 'population', label: '인구', prompt: '사람 토큰이 있는 구역을 봅니다.' },
@@ -15,9 +18,13 @@ const LAYERS: ReadonlyArray<{ id: DataLayerId; label: string; prompt: string }> 
 export function CityDataRoom() {
   const { state, dispatch } = useSession();
   const city = cityForId(state.cityId);
+  const [viewMode, setViewMode] = useState<'map' | 'table'>('map');
   const reviewedCount = new Set(state.evidence.reviewedLayerIds).size;
   const validReviewContext = hasValidIntakeContext(state);
   const canConfirm = validReviewContext && reviewedCount >= 2;
+  const selectedCoordinate = state.selectedCandidateId
+    ? city?.candidates.find((candidate) => candidate.id === state.selectedCandidateId)?.coordinate.label ?? '선택 없음'
+    : '선택 없음';
 
   return (
     <section aria-labelledby="stage-heading" data-stage-id="data-room" role="region">
@@ -44,6 +51,51 @@ export function CityDataRoom() {
 
       <p role="status" aria-live="polite">5개 중 {reviewedCount}개 확인</p>
       <LayerLegend activeLayerIds={state.activeLayerIds} />
+
+      {city && (
+        <div className="city-data-views">
+          <p className="selected-coordinate" aria-live="polite">{`현재 선택 좌표: ${selectedCoordinate}`}</p>
+          <div className="view-tabs" role="tablist" aria-label="도시 자료 표현 선택">
+            <button
+              id="map-tab"
+              type="button"
+              role="tab"
+              aria-selected={viewMode === 'map'}
+              aria-controls="map-panel"
+              tabIndex={viewMode === 'map' ? 0 : -1}
+              onClick={() => setViewMode('map')}
+            >지도 보기</button>
+            <button
+              id="table-tab"
+              type="button"
+              role="tab"
+              aria-selected={viewMode === 'table'}
+              aria-controls="table-panel"
+              tabIndex={viewMode === 'table' ? 0 : -1}
+              onClick={() => setViewMode('table')}
+            >표 보기</button>
+          </div>
+          {viewMode === 'map' ? (
+            <div id="map-panel" role="tabpanel" aria-labelledby="map-tab" aria-label="지도 보기">
+              <GridMap
+                city={city}
+                activeLayerIds={state.activeLayerIds}
+                selectedCandidateId={state.selectedCandidateId}
+                onSelectCandidate={(candidateId) => dispatch({ type: 'select-candidate', candidateId })}
+              />
+            </div>
+          ) : (
+            <div id="table-panel" role="tabpanel" aria-labelledby="table-tab" aria-label="표 보기">
+              <CityDataTable
+                city={city}
+                activeLayerIds={state.activeLayerIds}
+                selectedCandidateId={state.selectedCandidateId}
+                onSelectCandidate={(candidateId) => dispatch({ type: 'select-candidate', candidateId })}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       <button type="button" disabled={!canConfirm} onClick={() => dispatch({ type: 'go-to-stage', stage: 'placement' })}>
         자료층 확인
