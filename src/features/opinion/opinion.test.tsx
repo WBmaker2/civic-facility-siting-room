@@ -62,6 +62,20 @@ describe('structured siting opinion', () => {
     const result = validateOpinion(draftFor(proposals), proposals);
     expect(result.complete).toBe(true);
     expect(Object.keys(result.errors)).toEqual(['proposal', 'evidence', 'underservedZone', 'rationale', 'counterargument', 'mitigation']);
+    const complete = draftFor(proposals);
+    const oneError: Array<[keyof typeof result.errors, OpinionDraft]> = [
+      ['proposal', { ...complete, selectedProposalId: null }],
+      ['evidence', { ...complete, evidenceMetricIds: ['average', 'maximum'] }],
+      ['underservedZone', { ...complete, underservedZoneId: null }],
+      ['rationale', { ...complete, rationale: '짧음' }],
+      ['counterargument', { ...complete, counterargument: '짧음' }],
+      ['mitigation', { ...complete, mitigation: '짧음' }],
+    ];
+    for (const [key, candidate] of oneError) {
+      for (const [errorKey, message] of Object.entries(validateOpinion(candidate, proposals).errors)) {
+        expect(message === null).toBe(errorKey !== key);
+      }
+    }
     expect(validateOpinion({ ...draftFor(proposals), evidenceMetricIds: ['average'], rationale: '짧음' }, proposals).complete).toBe(false);
     expect(validateOpinion({ ...draftFor(proposals), underservedZoneId: 'unknown-zone' }, proposals).errors.underservedZone).not.toBeNull();
     expect(validateOpinion(draftFor(proposals), [null as never, null as never]).complete).toBe(false);
@@ -76,12 +90,35 @@ describe('structured siting opinion', () => {
     expect(cloneOpinionDraft(Object.freeze(nullPrototype))).not.toBeNull();
   });
 
+  it('rejects semantic assessment forgeries even when the snapshot shape is complete', () => {
+    const proposals = makeProposals();
+    const mutations: ProposalSnapshot['assessment'][] = [
+      { ...proposals[0]!.assessment, conditionResults: proposals[0]!.assessment.conditionResults.map((result, index) => index === 0 ? { ...result, passed: !result.passed } : result) },
+      { ...proposals[0]!.assessment, conditionResults: proposals[0]!.assessment.conditionResults.map((result, index) => index === 0 ? { ...result, evidenceText: `${result.evidenceText} 위조` } : result) },
+      { ...proposals[0]!.assessment, verdict: proposals[0]!.assessment.verdict === 'revise' ? 'valid-with-tradeoffs' : 'revise' },
+      { ...proposals[0]!.assessment, priorityConsistent: !proposals[0]!.assessment.priorityConsistent },
+      { ...proposals[0]!.assessment, missingEvidence: [...proposals[0]!.assessment.missingEvidence, '위조'] },
+      { ...proposals[0]!.assessment, feedbackPrompts: [...proposals[0]!.assessment.feedbackPrompts, '위조'] },
+    ];
+    for (const assessment of mutations) {
+      const forged = [{ ...proposals[0]!, assessment }, proposals[1]!];
+      expect(validateOpinion(draftFor(proposals), forged as ProposalSnapshot[]).complete).toBe(false);
+    }
+  });
+
   it('renders conditions, trade-offs, verdict, and all boundary notices in the printable summary', () => {
     const proposals = makeProposals();
     render(<OpinionSummary draft={draftFor(proposals)} proposals={proposals} mission={MISSIONS['bookmaru-library']} city={CITIES.mulbit} />);
     expect(screen.getByRole('heading', { name: '완성한 입지 심의 의견서' })).toBeInTheDocument();
     expect(screen.getByText(/타당안—절충 확인|수정 필요/)).toBeInTheDocument();
-    expect(screen.getAllByText(/평균 이동 단위/).length).toBeGreaterThan(0);
+    const selected = proposals[0]!;
+    expect(screen.getByText(`평균 이동 단위: ${selected.analysis.nearestFacilityAccess.populationWeightedAverage!.toFixed(1)} 이동 단위`)).toBeInTheDocument();
+    expect(screen.getByText(`가장 긴 이동 단위: ${selected.analysis.nearestFacilityAccess.longestReachableTravel} 이동 단위`)).toBeInTheDocument();
+    expect(screen.getByText(`위험 조건: ${selected.analysis.riskyCandidateIds.length}곳`)).toBeInTheDocument();
+    expect(screen.getByText('물빛 가운데 구역')).toBeInTheDocument();
+    expect(screen.getByText('여러 구역의 이동 부담을 함께 살폈습니다.')).toBeInTheDocument();
+    expect(screen.getByText('다른 구역의 이동이 길어질 수 있습니다.')).toBeInTheDocument();
+    expect(screen.getByText('다음 단계에서 안내와 보완 시설을 함께 살핍니다.')).toBeInTheDocument();
     expect(screen.getByText(/실제 도시계획을 대신하거나 응급 서비스 성능을 예측하지 않습니다/)).toBeInTheDocument();
     expect(screen.getAllByText(/이름, 학교, 집 주소, 실제 지역은 입력하지 마세요/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/주민 개인의 잘못이 아닙니다/).length).toBeGreaterThan(0);
@@ -130,5 +167,33 @@ describe('structured siting opinion', () => {
     expect(validateOpinion(draftFor(proposals), forged as ProposalSnapshot[]).complete).toBe(false);
     render(<OpinionSummary draft={draftFor(proposals)} proposals={proposals} mission={null as never} city={CITIES.mulbit} />);
     expect(screen.getByRole('alert')).toHaveTextContent('의견서 자료를 표시할 수 없습니다');
+  });
+
+  it('renders an alert for incomplete drafts, malformed explicit proposals, and malformed form inputs', () => {
+    const proposals = makeProposals();
+    const incomplete = { ...draftFor(proposals), evidenceMetricIds: [] as OpinionDraft['evidenceMetricIds'] };
+    render(<OpinionSummary draft={incomplete} proposals={proposals} mission={MISSIONS['bookmaru-library']} city={CITIES.mulbit} />);
+    expect(screen.getByRole('alert')).toHaveTextContent('의견서 자료를 표시할 수 없습니다');
+    for (const invalidDraft of [
+      { ...draftFor(proposals), underservedZoneId: null },
+      { ...draftFor(proposals), rationale: '가'.repeat(9) },
+      { ...draftFor(proposals), rationale: '가'.repeat(301) },
+    ]) {
+      cleanup();
+      render(<OpinionSummary draft={invalidDraft} proposals={proposals} mission={MISSIONS['bookmaru-library']} city={CITIES.mulbit} />);
+      expect(screen.getByRole('alert')).toHaveTextContent('의견서 자료를 표시할 수 없습니다');
+    }
+    cleanup();
+    render(<OpinionSummary draft={draftFor(proposals)} proposal={{ ...proposals[0]!, assessment: { ...proposals[0]!.assessment, verdict: 'not-a-verdict' } as never }} proposals={proposals} mission={MISSIONS['bookmaru-library']} city={CITIES.mulbit} />);
+    expect(screen.getByRole('alert')).toHaveTextContent('선택안과 우선 기준을 확인할 수 없습니다');
+    cleanup();
+    const onSubmit = vi.fn();
+    render(<SitingOpinionForm draft={null as never} proposals={proposals} onSubmit={onSubmit} />);
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+    cleanup();
+    render(<SitingOpinionForm draft={draftFor(proposals)} proposals={null as never} onSubmit={onSubmit} />);
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 });

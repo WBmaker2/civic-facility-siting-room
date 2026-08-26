@@ -6,7 +6,7 @@ import { MISSIONS } from '../domain/missions';
 import { analyzePlacement } from '../engine/analyzePlacement';
 import { assessProposal } from '../engine/assessProposal';
 import { createProposalSnapshot } from '../engine/proposalComparison';
-import type { FacilityPlacement, PlacementAnalysis, ProposalSnapshot } from '../domain/types';
+import type { FacilityPlacement, OpinionDraft, PlacementAnalysis, ProposalSnapshot } from '../domain/types';
 import {
   createInitialSession,
   hasValidIntakeContext,
@@ -356,22 +356,24 @@ describe('sessionReducer', () => {
 
   it('rejects opinion priority mismatches and keeps malformed selector states closed', () => {
     const state = atDataRoom();
-    const mismatch = sessionReducer(state, {
-      type: 'set-opinion',
-      opinion: { ...state.opinion, priorityId: 'cost' },
-    });
+    const mismatch = sessionReducer(state, { type: 'set-opinion', opinion: { ...state.opinion, priorityId: 'cost' } });
     expect(mismatch).toBe(state);
-
-    const malformed = {
-      ...state,
-      stage: 'opinion',
-      proposals: { length: 2 } as never,
-      opinion: Object.create(null),
-    } as SessionState;
+    const malformed = { ...state, stage: 'opinion', proposals: { length: 2 } as never, opinion: Object.create(null) } as SessionState;
     expect(selectOpinionReady(malformed)).toBe(false);
     expect(selectStageGate(malformed, 'opinion')).toBe(false);
     expect(selectSessionSelectors(malformed)).toEqual({ canAdvance: false, opinionReady: false });
     expect(selectCanAdvance(malformed)).toBe(false);
+  });
+
+  it('closes opinion readiness when a stored assessment result is semantically forged', () => {
+    const intake = atDataRoom();
+    const evidenceReady = { ...intake, evidence: { ...intake.evidence, inspectedMetricIds: ['average', 'maximum'] as OpinionDraft['evidenceMetricIds'], selectedUnderservedZoneIds: ['mulbit-north'] } };
+    const first = proposal(evidenceReady, 'A안');
+    const second = proposal(evidenceReady, 'B안', [{ ...libraryPlacement, candidateId: 'mulbit-b2' }]);
+    const opinion: OpinionDraft = { ...intake.opinion, priorityId: 'access-equity', selectedProposalId: first.id, evidenceMetricIds: ['average', 'maximum', 'risk'], underservedZoneId: 'mulbit-north', rationale: '여러 구역의 이동 부담을 함께 살폈습니다.', counterargument: '다른 구역의 이동이 길어질 수 있습니다.', mitigation: '안내와 보완 시설을 함께 살핍니다.' };
+    const ready = { ...evidenceReady, proposals: [first, second], evidence: { ...evidenceReady.evidence, comparedProposalIds: ['proposal-a', 'proposal-b'] }, opinion } as SessionState;
+    expect(selectOpinionReady(ready)).toBe(true);
+    expect(selectStageGate({ ...ready, proposals: [{ ...first, assessment: { ...first.assessment, priorityConsistent: !first.assessment.priorityConsistent } }, second] }, 'opinion')).toBe(false);
   });
 
   it('accepts only an own-key candidate from the assigned city and preserves identity otherwise', () => {

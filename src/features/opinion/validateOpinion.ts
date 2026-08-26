@@ -1,6 +1,8 @@
 import { MISSIONS } from '../../domain/missions';
-import type { OpinionDraft, ProposalSnapshot, PriorityId } from '../../domain/types';
+import type { LearningEvidence, OpinionDraft, ProposalSnapshot, PriorityId } from '../../domain/types';
+import { assessProposal } from '../../engine/assessProposal';
 import { cloneProposalSnapshot, compareProposals } from '../../engine/proposalComparison';
+import { sameSerializableValue } from '../../engine/validatePlacementAnalysis';
 
 export type OpinionErrorKey = 'proposal' | 'evidence' | 'underservedZone' | 'rationale' | 'counterargument' | 'mitigation';
 export interface OpinionValidation { complete: boolean; errors: Record<OpinionErrorKey, string | null> }
@@ -102,12 +104,34 @@ export function cloneOpinionProposals(value: unknown): ProposalSnapshot[] | null
 const emptyErrors = (): Record<OpinionErrorKey, string | null> => Object.fromEntries(errorKeys.map((key) => [key, null])) as Record<OpinionErrorKey, string | null>;
 const textLength = (value: string): number => Array.from(value.trim()).length;
 
+const hasDeterministicAssessment = (draft: OpinionDraft, proposals: readonly ProposalSnapshot[]): boolean => {
+  const priorityId = draft.priorityId;
+  if (priorityId === null) return false;
+  return proposals.every((proposal, index) => {
+    const mission = MISSIONS[proposal.analysis.missionId as keyof typeof MISSIONS];
+    const firstZone = proposal.analysis.nearestFacilityAccess.zoneTravel[0]?.zoneId;
+    if (mission === undefined || firstZone === undefined) return false;
+    const evidence: LearningEvidence = {
+      reviewedLayerIds: ['population', 'roads'],
+      inspectedMetricIds: ['average', 'maximum'],
+      selectedUnderservedZoneIds: [firstZone],
+      comparedProposalIds: index === 0 ? [] : ['proposal-a', 'proposal-b'],
+    };
+    try {
+      return sameSerializableValue(assessProposal(mission, priorityId, proposal.analysis, evidence), proposal.assessment);
+    } catch {
+      return false;
+    }
+  });
+};
+
 export function validateOpinion(draft: OpinionDraft, proposals: ProposalSnapshot[]): OpinionValidation {
   const errors = emptyErrors();
   const clonedDraft = cloneOpinionDraft(draft);
   const clonedProposals = cloneOpinionProposals(proposals);
   if (clonedDraft === null) return { complete: false, errors: { ...errors, proposal: '의견서 선택 정보를 확인해 주세요.' } };
   if (clonedProposals === null) return { complete: false, errors: { ...errors, proposal: '서로 다른 A안과 B안을 비교한 뒤 선택해 주세요.' } };
+  if (!hasDeterministicAssessment(clonedDraft, clonedProposals)) errors.proposal = '공개 판정 자료를 확인할 수 없습니다.';
   const selected = clonedProposals.find((proposal) => proposal.id === clonedDraft.selectedProposalId);
   if (selected === undefined || clonedDraft.priorityId === null) errors.proposal = selected === undefined ? '저장된 제안 중 하나를 선택해 주세요.' : '우선 기준을 선택해 주세요.';
   if (!clonedDraft.evidenceMetricIds.includes('average') || !clonedDraft.evidenceMetricIds.includes('maximum') || !clonedDraft.evidenceMetricIds.some((metric) => metric !== 'average' && metric !== 'maximum')) errors.evidence = '평균과 최대 이동, 그리고 추가 조건 하나 이상을 근거로 선택해 주세요.';

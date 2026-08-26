@@ -4,7 +4,7 @@ import type { CityScenario, MissionDefinition, OpinionDraft, PriorityId, Proposa
 import { MISSIONS } from '../../domain/missions';
 import { cloneProposalSnapshot } from '../../engine/proposalComparison';
 import { sameSerializableValue } from '../../engine/validatePlacementAnalysis';
-import { cloneOpinionDraft, cloneOpinionProposals, isOpinionTextWithinLimit } from './validateOpinion';
+import { cloneOpinionDraft, cloneOpinionProposals, isOpinionTextWithinLimit, validateOpinion } from './validateOpinion';
 
 export interface OpinionSummaryProps {
   draft: OpinionDraft;
@@ -33,12 +33,13 @@ export function OpinionSummary({ draft, proposal: explicitProposal = null, propo
   const safeProposals = cloneOpinionProposals(proposals);
   const canonicalCity = (() => { try { const descriptor = city === undefined ? undefined : Object.getOwnPropertyDescriptor(city, 'id'); const rawId = descriptor !== undefined && 'value' in descriptor ? descriptor.value : null; const id: CityScenario['id'] | null = rawId === 'mulbit' || rawId === 'maru' ? rawId : null; return id !== null && city !== undefined && sameSerializableValue(city, CITIES[id]) ? CITIES[id] : null; } catch { return null; } })();
   const canonicalMission = (() => { try { const descriptor = mission === undefined ? undefined : Object.getOwnPropertyDescriptor(mission, 'id'); const id = descriptor !== undefined && 'value' in descriptor ? descriptor.value : null; return typeof id === 'string' && Object.prototype.hasOwnProperty.call(MISSIONS, id) && mission !== undefined && sameSerializableValue(mission, MISSIONS[id as keyof typeof MISSIONS]) ? MISSIONS[id as keyof typeof MISSIONS] : null; } catch { return null; } })();
-  if (safeDraft === null || safeProposals === null || canonicalCity === null || canonicalMission === null || !isOpinionTextWithinLimit(safeDraft?.rationale) || !isOpinionTextWithinLimit(safeDraft?.counterargument) || !isOpinionTextWithinLimit(safeDraft?.mitigation)) return invalid('의견서 자료를 표시할 수 없습니다. 선택안·도시·미션 자료를 다시 확인해 주세요.');
+  const validation = safeDraft !== null && safeProposals !== null ? validateOpinion(safeDraft, safeProposals) : null;
+  if (safeDraft === null || safeProposals === null || validation?.complete !== true || canonicalCity === null || canonicalMission === null || !isOpinionTextWithinLimit(safeDraft?.rationale) || !isOpinionTextWithinLimit(safeDraft?.counterargument) || !isOpinionTextWithinLimit(safeDraft?.mitigation)) return invalid('의견서 자료를 표시할 수 없습니다. 선택안·도시·미션 자료를 다시 확인해 주세요.');
   const safeExplicit = explicitProposal === null ? null : (() => { try { return cloneProposalSnapshot(explicitProposal); } catch { return null; } })();
   const listedExplicit = safeExplicit === null ? null : safeProposals.find((item) => item.id === safeExplicit.id && sameSerializableValue(item, safeExplicit)) ?? null;
   const proposal = safeExplicit !== null ? listedExplicit : safeProposals.find((item) => item.id === safeDraft.selectedProposalId) ?? null;
   const effectivePriority = priorityId ?? safeDraft.priorityId;
-  if (proposal === null || safeDraft.selectedProposalId !== proposal.id || effectivePriority === null || !PRIORITY_LABELS[effectivePriority] || (priorityId !== null && safeDraft.priorityId !== priorityId) || proposal.analysis.cityId !== canonicalCity.id || proposal.analysis.missionId !== canonicalMission.id) return invalid('선택안과 우선 기준을 확인할 수 없습니다.');
+  if ((explicitProposal !== null && safeExplicit === null) || proposal === null || safeDraft.selectedProposalId !== proposal.id || effectivePriority === null || !PRIORITY_LABELS[effectivePriority] || (priorityId !== null && safeDraft.priorityId !== priorityId) || proposal.analysis.cityId !== canonicalCity.id || proposal.analysis.missionId !== canonicalMission.id) return invalid('선택안과 우선 기준을 확인할 수 없습니다.');
   const zoneName = canonicalCity.zones.find((zone: CityScenario['zones'][number]) => zone.id === safeDraft.underservedZoneId)?.name ?? safeDraft.underservedZoneId ?? '선택한 구역';
   const verdict = proposal.assessment.verdict === 'valid-with-tradeoffs' ? '타당안—절충 확인' : '수정 필요';
   return (
