@@ -223,6 +223,9 @@ describe('sessionReducer', () => {
     state = sessionReducer(state, { type: 'go-to-stage', stage: 'analysis' });
     expect(state.stage).toBe('analysis');
     state = sessionReducer(state, { type: 'store-analysis', analysis: makeAnalysis() });
+    state = sessionReducer(state, { type: 'inspect-metric', metricId: 'average' });
+    expect(sessionReducer(state, { type: 'go-to-stage', stage: 'resident-view' }).stage).toBe('analysis');
+    state = sessionReducer(state, { type: 'inspect-metric', metricId: 'maximum' });
     state = sessionReducer(state, { type: 'go-to-stage', stage: 'resident-view' });
     expect(state.stage).toBe('resident-view');
     state = sessionReducer(state, { type: 'select-underserved-zone', zoneId: 'mulbit-north' });
@@ -230,6 +233,8 @@ describe('sessionReducer', () => {
     state = sessionReducer(state, { type: 'go-to-stage', stage: 'placement' });
     state = sessionReducer(state, { type: 'place-facility', placement: { ...libraryPlacement, candidateId: 'mulbit-b2' } });
     state = sessionReducer(state, { type: 'store-analysis', analysis: makeAnalysis([{ ...libraryPlacement, candidateId: 'mulbit-b2' }]) });
+    state = sessionReducer(state, { type: 'inspect-metric', metricId: 'average' });
+    state = sessionReducer(state, { type: 'inspect-metric', metricId: 'maximum' });
     state = sessionReducer(state, { type: 'save-proposal', proposal: proposal('b', [{ ...libraryPlacement, candidateId: 'mulbit-b2' }]) });
     state = sessionReducer(state, { type: 'go-to-stage', stage: 'analysis' });
     state = sessionReducer(state, { type: 'select-underserved-zone', zoneId: 'mulbit-north' });

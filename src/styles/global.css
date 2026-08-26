@@ -103,3 +103,39 @@ fieldset input { vertical-align: middle; margin-right: var(--space-2); }
 .candidate-card-content > span, .placement-slot p { color: var(--color-muted); }
 .placement-slots { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); }
 .placement-slot { margin: 0; }
+
+.impact-tabs { display: flex; gap: var(--space-2); margin: var(--space-4) 0 var(--space-3); }
+.impact-tabs button[aria-selected="true"] { background: var(--color-accent-soft); font-weight: 700; }
+.impact-panels { display: grid; grid-template-columns: minmax(14rem, 0.8fr) minmax(0, 2fr); gap: var(--space-4); }
+.impact-panels > [role="tabpanel"] { min-width: 0; }
+.impact-selection-panel-content, .impact-access-metrics, .impact-constraint, .calculation-basis, .impact-role-results { margin: var(--space-4) 0; padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); box-shadow: var(--shadow-soft); }
+.impact-metric-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
+.impact-evidence-card { display: flex; min-height: 7rem; flex-direction: column; align-items: flex-start; gap: var(--space-1); text-align: left; }
+.impact-evidence-card strong { font-size: 1.2rem; }
+.impact-metric-label { font-weight: 700; }
+.impact-metric-detail { color: var(--color-muted); font-size: 0.9rem; }
+.impact-high-visibility { padding: var(--space-3); border: 3px solid var(--color-risk); background: #fff3df; font-weight: 700; }
+.impact-constraint-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+.impact-constraint { margin: 0; }
+.impact-constraint .impact-evidence-card { width: 100%; }
+.calculation-definitions { margin: 0; }
+.calculation-row { display: grid; grid-template-columns: minmax(9rem, 0.4fr) minmax(0, 1fr); border-top: 1px solid var(--color-border); padding: var(--space-3) 0; gap: var(--space-3); }
+.calculation-row dt { font-weight: 700; }
+.calculation-row dd { display: grid; gap: var(--space-1); margin: 0; }
+.calculation-row dd span { color: var(--color-muted); }
+.impact-path-disclosure { margin-top: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius); padding: var(--space-3); }
+.impact-path-disclosure summary { min-height: 44px; cursor: pointer; font-weight: 700; }
+.impact-table-scroll { overflow-x: auto; }
+.impact-path-table { width: 100%; min-width: 36rem; border-collapse: collapse; }
+.impact-path-table caption { padding: var(--space-3); text-align: left; font-weight: 700; }
+.impact-path-table th, .impact-path-table td { border: 1px solid var(--color-border); padding: var(--space-2); text-align: left; vertical-align: top; }
+.impact-path-table thead th { background: var(--color-surface-soft); }
+.model-limit-notice { color: var(--color-muted); }
+
+/* Task 10 mobile contract: the two analysis panels become a tabbed view. */
+@media (max-width: 600px) {
+  .impact-panels { display: block; }
+  .impact-panels > [role="tabpanel"][aria-hidden="true"] { display: none; }
+  .impact-metric-cards, .impact-constraint-grid { grid-template-columns: 1fr; }
+  .impact-tabs { position: sticky; top: 0; z-index: 1; padding: var(--space-2) 0; background: var(--color-paper); }
+}

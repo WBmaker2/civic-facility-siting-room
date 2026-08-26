@@ -51,6 +51,7 @@ export function FacilityPlacementPanel() {
     if (placedCandidateIds.has(candidate.id)) candidateReasons.set(candidate.id, '다른 시설 슬롯에서 이미 사용한 후보입니다.');
   }
   const disabledCandidateIds = placedCandidateIds;
+  const placementComplete = state.placements.length === mission.facilityKinds.length && validatePlacements(mission, city, state.placements);
 
   const placementForSlot = (slot: PlacementSlotView): FacilityPlacement | null => {
     if (selectedCandidate === undefined) return null;
@@ -119,6 +120,10 @@ export function FacilityPlacementPanel() {
         })}
       </div>
       <p>각 수치는 실제 도시가 아닌 가상 격자 모형의 상대 단위입니다. 후보지를 바꾸면 영향 분석을 다시 확인해야 합니다.</p>
+      <button type="button" disabled={!placementComplete} onClick={() => dispatch({ type: 'go-to-stage', stage: 'analysis' })}>
+        영향 분석실로 이동
+      </button>
+      {!placementComplete && <p role="status">모든 시설 슬롯에 유효한 후보지를 배치하면 영향 분석실로 갈 수 있습니다.</p>}
     </section>
   );
 }

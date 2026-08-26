@@ -171,7 +171,9 @@ export const selectStageGate = (state: SessionState, stage: StageId): boolean =>
     case 'intake': return hasValidIntakeContext(state);
     case 'data-room': return hasValidIntakeContext(state) && new Set(state.evidence.reviewedLayerIds).size >= 2;
     case 'placement': return isPlacementComplete(state);
-    case 'analysis': return isFreshAnalysis(state, state.analysis);
+    case 'analysis': return isFreshAnalysis(state, state.analysis)
+      && state.evidence.inspectedMetricIds.includes('average')
+      && state.evidence.inspectedMetricIds.includes('maximum');
     case 'resident-view': return isFreshAnalysis(state, state.analysis) && state.evidence.selectedUnderservedZoneIds.length > 0 && hasAlternative(state);
     case 'opinion': return selectOpinionReady(state);
     default: return false;
