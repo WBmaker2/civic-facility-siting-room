@@ -89,9 +89,46 @@ const expectedAnalysis = (state: SessionState): PlacementAnalysis | null => {
     return null;
   }
 };
+const isPlainRecord = (value: object): boolean => {
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+};
 const sameSerializableValue = (left: unknown, right: unknown): boolean => {
+  const leftPath = new WeakSet<object>();
+  const rightPath = new WeakSet<object>();
+  const compare = (a: unknown, b: unknown): boolean => {
+    if (a === null || b === null) return a === b;
+    if (typeof a !== typeof b) return false;
+    if (typeof a === 'undefined' || typeof a === 'function' || typeof a === 'symbol' || typeof a === 'bigint') return false;
+    if (typeof a !== 'object') return Object.is(a, b);
+    if (typeof b !== 'object' || b === null) return false;
+    if (leftPath.has(a) || rightPath.has(b)) return false;
+    leftPath.add(a); rightPath.add(b);
+    try {
+      if (Array.isArray(a) || Array.isArray(b)) {
+        if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+        const keysA = Object.keys(a);
+        const keysB = Object.keys(b);
+        if (keysA.length !== a.length || keysB.length !== b.length
+          || keysA.some((key, index) => key !== String(index))
+          || keysB.some((key, index) => key !== String(index))) return false;
+        return a.every((item, index) => compare(item, b[index]));
+      }
+      if (!isPlainRecord(a) || !isPlainRecord(b)
+        || Object.getOwnPropertySymbols(a).length > 0
+        || Object.getOwnPropertySymbols(b).length > 0) return false;
+      const keysA = Object.keys(a).sort();
+      const keysB = Object.keys(b).sort();
+      const recordA = a as Record<string, unknown>;
+      const recordB = b as Record<string, unknown>;
+      return keysA.length === keysB.length
+        && keysA.every((key, index) => key === keysB[index] && compare(recordA[key], recordB[key]));
+    } finally {
+      leftPath.delete(a); rightPath.delete(b);
+    }
+  };
   try {
-    return JSON.stringify(left) === JSON.stringify(right);
+    return compare(left, right);
   } catch {
     return false;
   }

@@ -24,6 +24,14 @@ const makeAnalysis = (placements: FacilityPlacement[] = [libraryPlacement]): Pla
   ...analyzePlacement(CITIES.mulbit, MISSIONS['bookmaru-library'], placements),
 });
 
+const reorderRecordKeys = <T>(value: T): T => {
+  if (Array.isArray(value)) return value.map(reorderRecordKeys) as T;
+  if (value !== null && typeof value === 'object' && Object.getPrototypeOf(value) === Object.prototype) {
+    return Object.fromEntries(Object.entries(value).reverse().map(([key, entry]) => [key, reorderRecordKeys(entry)])) as T;
+  }
+  return value;
+};
+
 const proposal = (id: string, placements: FacilityPlacement[] = [libraryPlacement]): ProposalSnapshot => ({
   id,
   label: `안 ${id}`,
@@ -230,6 +238,43 @@ describe('sessionReducer', () => {
     expect(sessionReducer(missingRow, { type: 'select-underserved-zone', zoneId: 'mulbit-north' })).toBe(missingRow);
     expect(sessionReducer(state, { type: 'select-underserved-zone', zoneId: 'not-a-zone' })).toBe(state);
     expect(sessionReducer(state, { type: 'select-underserved-zone', zoneId: 'mulbit-north' }).evidence.selectedUnderservedZoneIds).toEqual(['mulbit-north']);
+  });
+
+  it('accepts verified analyses when record insertion order differs, but rejects contract changes', () => {
+    let state = atPlacement();
+    state = sessionReducer(state, { type: 'place-facility', placement: libraryPlacement });
+    const valid = makeAnalysis();
+    const reordered = reorderRecordKeys(valid);
+    const storedReordered = sessionReducer(state, { type: 'store-analysis', analysis: reordered });
+    expect(storedReordered.analysis).toEqual(valid);
+
+    const combinedPlacements: FacilityPlacement[] = [
+      { slotId: 'library-1', facilityKind: 'library', candidateId: 'maru-b2' },
+      { slotId: 'health-support-1', facilityKind: 'health-support', candidateId: 'maru-e3' },
+    ];
+    let combined = sessionReducer(createInitialSession(), { type: 'select-mission', missionId: 'combined-review' });
+    combined = sessionReducer(combined, { type: 'place-facility', placement: combinedPlacements[0]! });
+    combined = sessionReducer(combined, { type: 'place-facility', placement: combinedPlacements[1]! });
+    const combinedAnalysis = analyzePlacement(CITIES.maru, MISSIONS['combined-review'], combinedPlacements);
+    const reorderedCombined = reorderRecordKeys(combinedAnalysis);
+    const storedCombined = sessionReducer(combined, { type: 'store-analysis', analysis: reorderedCombined });
+    expect(storedCombined.analysis).toEqual(combinedAnalysis);
+
+    const missingKey = { ...valid };
+    delete (missingKey as unknown as Record<string, unknown>).totalCostTokens;
+    const extraKey = { ...valid, unexpected: true } as PlacementAnalysis;
+    const changedValue = { ...valid, totalCostTokens: valid.totalCostTokens + 1 };
+    const dateValue = { ...valid, totalCostTokens: new Date() } as unknown as PlacementAnalysis;
+    const functionValue = { ...valid, totalCostTokens: (() => 2) } as unknown as PlacementAnalysis;
+    const symbolValue = { ...valid, totalCostTokens: Symbol('cost') } as unknown as PlacementAnalysis;
+    const undefinedValue = { ...valid, totalCostTokens: undefined } as unknown as PlacementAnalysis;
+    expect(sessionReducer(state, { type: 'store-analysis', analysis: missingKey })).toBe(state);
+    expect(sessionReducer(state, { type: 'store-analysis', analysis: extraKey })).toBe(state);
+    expect(sessionReducer(state, { type: 'store-analysis', analysis: changedValue })).toBe(state);
+    expect(sessionReducer(state, { type: 'store-analysis', analysis: dateValue })).toBe(state);
+    expect(sessionReducer(state, { type: 'store-analysis', analysis: functionValue })).toBe(state);
+    expect(sessionReducer(state, { type: 'store-analysis', analysis: symbolValue })).toBe(state);
+    expect(sessionReducer(state, { type: 'store-analysis', analysis: undefinedValue })).toBe(state);
   });
 
 });
