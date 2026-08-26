@@ -13,7 +13,7 @@ afterEach(() => {
 describe('UPDATE_HISTORY', () => {
   it('keeps the exact dated entries newest first and immutable', () => {
     expect(UPDATE_HISTORY).toEqual([
-      { date: '2026-08-27', category: '개선', summaries: ['375px 모바일 지도·표 내부 스크롤과 reflow, table-only 시작·범례 이름·의견 입력 44px 터치 영역 보강'] },
+      { date: '2026-08-27', category: '개선', summaries: ['375px 모바일 지도·표 내부 스크롤과 reflow, table-only 시작·범례 이름·의견 입력 44px 터치 영역·자료층 확인 enabled gi-pulse CTA 보강'] },
       {
         date: '2026-08-27',
         category: '개발',

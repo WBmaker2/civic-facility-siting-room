@@ -1,6 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 
-const FORBIDDEN_REQUEST_PATH = /(?:^|\/)(?:map(?:s)?(?:\/tiles)?|map\.js|maps\.js|geocode|geocoding|ai(?:-helper|-recommendation)?|analytics(?:\.js)?|openai|gemini|auth|login(?:-callback)?|submit(?:-opinion)?|submission)(?:\/|$|\?)/i;
+const FORBIDDEN_REQUEST_PATH = /(?:^|\/)(?:map(?:s)?(?:\/tiles)?|map\.js|maps\.js|geocode|geocoding|ai(?:-helper|-recommend(?:ation)?)?|analytics(?:\.js)?|openai|gemini|auth|login(?:-callback)?|submit(?:-opinion)?|submission)(?:\/|$|\?)/i;
 
 export function assertLocalhostRequests(requestUrls: readonly string[]): void {
   expect(requestUrls.length, 'at least one browser request should be observed').toBeGreaterThan(0);

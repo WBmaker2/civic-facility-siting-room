@@ -15,7 +15,7 @@ export const UPDATE_HISTORY: readonly UpdateEntry[] = Object.freeze([
   freezeEntry({
     date: '2026-08-27',
     category: '개선',
-    summaries: ['375px 모바일 지도·표 내부 스크롤과 reflow, table-only 시작·범례 이름·의견 입력 44px 터치 영역 보강'],
+    summaries: ['375px 모바일 지도·표 내부 스크롤과 reflow, table-only 시작·범례 이름·의견 입력 44px 터치 영역·자료층 확인 enabled gi-pulse CTA 보강'],
   }),
   freezeEntry({
     date: '2026-08-27',
