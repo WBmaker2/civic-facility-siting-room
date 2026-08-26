@@ -93,6 +93,20 @@ const isPlainRecord = (value: object): boolean => {
   const prototype = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
 };
+const isStandardDenseArray = (value: object): value is unknown[] => {
+  if (Object.getPrototypeOf(value) !== Array.prototype) return false;
+  const array = value as unknown[];
+  const lengthDescriptor = Object.getOwnPropertyDescriptor(array, 'length');
+  if (lengthDescriptor === undefined || !('value' in lengthDescriptor) || !Number.isSafeInteger(lengthDescriptor.value)) return false;
+  const ownKeys = Reflect.ownKeys(array);
+  if (ownKeys.length !== lengthDescriptor.value + 1) return false;
+  for (let index = 0; index < lengthDescriptor.value; index += 1) {
+    const key = String(index);
+    const descriptor = Object.getOwnPropertyDescriptor(array, key);
+    if (descriptor === undefined || !('value' in descriptor)) return false;
+  }
+  return ownKeys.every((key) => key === 'length' || (typeof key === 'string' && /^\d+$/.test(key) && Number(key) < lengthDescriptor.value));
+};
 const sameSerializableValue = (left: unknown, right: unknown): boolean => {
   const leftPath = new WeakSet<object>();
   const rightPath = new WeakSet<object>();
@@ -106,13 +120,15 @@ const sameSerializableValue = (left: unknown, right: unknown): boolean => {
     leftPath.add(a); rightPath.add(b);
     try {
       if (Array.isArray(a) || Array.isArray(b)) {
-        if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
-        const keysA = Object.keys(a);
-        const keysB = Object.keys(b);
-        if (keysA.length !== a.length || keysB.length !== b.length
-          || keysA.some((key, index) => key !== String(index))
-          || keysB.some((key, index) => key !== String(index))) return false;
-        return a.every((item, index) => compare(item, b[index]));
+        if (!Array.isArray(a) || !Array.isArray(b) || !isStandardDenseArray(a) || !isStandardDenseArray(b) || a.length !== b.length) return false;
+        for (let index = 0; index < a.length; index += 1) {
+          const leftDescriptor = Object.getOwnPropertyDescriptor(a, String(index));
+          const rightDescriptor = Object.getOwnPropertyDescriptor(b, String(index));
+          if (leftDescriptor === undefined || rightDescriptor === undefined
+            || !('value' in leftDescriptor) || !('value' in rightDescriptor)
+            || !compare(leftDescriptor.value, rightDescriptor.value)) return false;
+        }
+        return true;
       }
       if (!isPlainRecord(a) || !isPlainRecord(b)
         || Object.getOwnPropertySymbols(a).length > 0
@@ -122,7 +138,14 @@ const sameSerializableValue = (left: unknown, right: unknown): boolean => {
       const recordA = a as Record<string, unknown>;
       const recordB = b as Record<string, unknown>;
       return keysA.length === keysB.length
-        && keysA.every((key, index) => key === keysB[index] && compare(recordA[key], recordB[key]));
+        && keysA.every((key, index) => {
+          if (key !== keysB[index]) return false;
+          const descriptorA = Object.getOwnPropertyDescriptor(recordA, key);
+          const descriptorB = Object.getOwnPropertyDescriptor(recordB, key);
+          return descriptorA !== undefined && descriptorB !== undefined
+            && 'value' in descriptorA && 'value' in descriptorB
+            && compare(descriptorA.value, descriptorB.value);
+        });
     } finally {
       leftPath.delete(a); rightPath.delete(b);
     }

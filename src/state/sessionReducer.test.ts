@@ -26,8 +26,10 @@ const makeAnalysis = (placements: FacilityPlacement[] = [libraryPlacement]): Pla
 
 const reorderRecordKeys = <T>(value: T): T => {
   if (Array.isArray(value)) return value.map(reorderRecordKeys) as T;
-  if (value !== null && typeof value === 'object' && Object.getPrototypeOf(value) === Object.prototype) {
-    return Object.fromEntries(Object.entries(value).reverse().map(([key, entry]) => [key, reorderRecordKeys(entry)])) as T;
+  if (value !== null && typeof value === 'object'
+    && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null)) {
+    const reordered = Object.fromEntries(Object.entries(value).reverse().map(([key, entry]) => [key, reorderRecordKeys(entry)]));
+    return (Object.getPrototypeOf(value) === null ? Object.assign(Object.create(null), reordered) : reordered) as T;
   }
   return value;
 };
@@ -257,6 +259,8 @@ describe('sessionReducer', () => {
     combined = sessionReducer(combined, { type: 'place-facility', placement: combinedPlacements[1]! });
     const combinedAnalysis = analyzePlacement(CITIES.maru, MISSIONS['combined-review'], combinedPlacements);
     const reorderedCombined = reorderRecordKeys(combinedAnalysis);
+    expect(Object.keys(reorderedCombined.perFacility)).toEqual(Object.keys(combinedAnalysis.perFacility).reverse());
+    expect(Object.keys(reorderedCombined.perFacility['library-1']!)).toEqual(Object.keys(combinedAnalysis.perFacility['library-1']!).reverse());
     const storedCombined = sessionReducer(combined, { type: 'store-analysis', analysis: reorderedCombined });
     expect(storedCombined.analysis).toEqual(combinedAnalysis);
 
@@ -275,6 +279,41 @@ describe('sessionReducer', () => {
     expect(sessionReducer(state, { type: 'store-analysis', analysis: functionValue })).toBe(state);
     expect(sessionReducer(state, { type: 'store-analysis', analysis: symbolValue })).toBe(state);
     expect(sessionReducer(state, { type: 'store-analysis', analysis: undefinedValue })).toBe(state);
+  });
+
+  it('rejects non-standard arrays while accepting frozen and ordinary dense arrays', () => {
+    let state = atPlacement();
+    state = sessionReducer(state, { type: 'place-facility', placement: libraryPlacement });
+    const valid = makeAnalysis();
+    const symbolNested = [...valid.nearestFacilityAccess.zoneTravel];
+    Object.defineProperty(symbolNested, Symbol('extra'), { value: true, enumerable: true });
+    const symbolPlacement = [...valid.placements];
+    Object.defineProperty(symbolPlacement, Symbol('extra'), { value: true, enumerable: true });
+    const extraKey = [...valid.nearestFacilityAccess.zoneTravel] as typeof valid.nearestFacilityAccess.zoneTravel & { extra?: boolean };
+    extraKey.extra = true;
+    const everyKey = [...valid.nearestFacilityAccess.zoneTravel] as typeof valid.nearestFacilityAccess.zoneTravel & { every?: unknown };
+    Object.defineProperty(everyKey, 'every', { value: () => true, enumerable: true });
+    const customPrototype = [...valid.nearestFacilityAccess.zoneTravel];
+    Object.setPrototypeOf(customPrototype, { custom: true });
+    const sparse = [...valid.nearestFacilityAccess.zoneTravel];
+    delete sparse[0];
+    const accessor = [...valid.nearestFacilityAccess.zoneTravel];
+    Object.defineProperty(accessor, '0', { configurable: true, enumerable: true, get: () => valid.nearestFacilityAccess.zoneTravel[0] });
+    const accessorRecord = { ...valid };
+    Object.defineProperty(accessorRecord, 'totalCostTokens', { configurable: true, enumerable: true, get: () => valid.totalCostTokens });
+    const attempts = [
+      { ...valid, nearestFacilityAccess: { ...valid.nearestFacilityAccess, zoneTravel: symbolNested } },
+      { ...valid, placements: symbolPlacement },
+      { ...valid, nearestFacilityAccess: { ...valid.nearestFacilityAccess, zoneTravel: extraKey } },
+      { ...valid, nearestFacilityAccess: { ...valid.nearestFacilityAccess, zoneTravel: everyKey } },
+      { ...valid, nearestFacilityAccess: { ...valid.nearestFacilityAccess, zoneTravel: customPrototype } },
+      { ...valid, nearestFacilityAccess: { ...valid.nearestFacilityAccess, zoneTravel: sparse } },
+      { ...valid, nearestFacilityAccess: { ...valid.nearestFacilityAccess, zoneTravel: accessor } },
+      accessorRecord,
+    ] as PlacementAnalysis[];
+    for (const [index, analysis] of attempts.entries()) expect(sessionReducer(state, { type: 'store-analysis', analysis }), `attempt ${index}`).toBe(state);
+    const frozen = { ...valid, placements: Object.freeze([...valid.placements]), nearestFacilityAccess: { ...valid.nearestFacilityAccess, zoneTravel: Object.freeze([...valid.nearestFacilityAccess.zoneTravel]) } } as unknown as PlacementAnalysis;
+    expect(sessionReducer(state, { type: 'store-analysis', analysis: frozen })).not.toBe(state);
   });
 
 });
