@@ -1,11 +1,17 @@
 import { describe, expect, it } from 'vitest';
+import { render } from '@testing-library/react';
+import { createElement } from 'react';
+import { CITIES } from '../domain/cities';
 import { MISSIONS } from '../domain/missions';
+import { analyzePlacement } from '../engine/analyzePlacement';
 import type { FacilityPlacement, PlacementAnalysis, ProposalSnapshot } from '../domain/types';
 import {
   createInitialSession,
+  selectCanAdvance,
   selectOpinionReady,
   sessionReducer,
 } from './sessionReducer';
+import { useSession } from './SessionProvider';
 import type { SessionState } from './sessionTypes';
 
 const libraryPlacement: FacilityPlacement = {
@@ -15,45 +21,14 @@ const libraryPlacement: FacilityPlacement = {
 };
 
 const makeAnalysis = (placements: FacilityPlacement[] = [libraryPlacement]): PlacementAnalysis => ({
-  cityId: 'mulbit',
-  missionId: 'bookmaru-library',
-  placements,
-  perFacility: {},
-  nearestFacilityAccess: {
-    populationWeightedAverage: 3,
-    reachablePeopleTokens: 24,
-    totalPeopleTokens: 24,
-    longestReachableTravel: 7,
-    worstServedZoneIds: ['mulbit-hill'],
-    unreachableZoneIds: [],
-    zoneTravel: [],
-  },
-  mobilityBarrierAccess: {
-    populationWeightedAverage: 3,
-    reachablePeopleTokens: 8,
-    totalPeopleTokens: 8,
-    longestReachableTravel: 4,
-    worstServedZoneIds: ['mulbit-south'],
-    unreachableZoneIds: [],
-    zoneTravel: [],
-  },
-  totalCostTokens: 2,
-  riskyCandidateIds: [],
-  overlapZoneIds: [],
-  coverageGapZoneIds: [],
-  missionContext: {
-    budgetTokens: 3,
-    serviceThreshold: 7,
-    facilityKinds: ['library'],
-    conditionCodes: ['WITHIN_BUDGET', 'NO_UNREACHABLE_ZONE', 'WORST_TRAVEL_WITHIN_LIMIT', 'NO_RISK_SITE', 'COST_WITHIN_PRIORITY_CAP'],
-  },
+  ...analyzePlacement(CITIES.mulbit, MISSIONS['bookmaru-library'], placements),
 });
 
-const proposal = (id: string): ProposalSnapshot => ({
+const proposal = (id: string, placements: FacilityPlacement[] = [libraryPlacement]): ProposalSnapshot => ({
   id,
   label: `안 ${id}`,
-  placements: [libraryPlacement],
-  analysis: makeAnalysis(),
+  placements,
+  analysis: makeAnalysis(placements),
   assessment: {
     verdict: 'revise',
     conditionResults: [],
@@ -68,6 +43,13 @@ const atDataRoom = (): SessionState => {
   state = sessionReducer(state, { type: 'select-priority', priorityId: 'access-equity' });
   state = sessionReducer(state, { type: 'toggle-layer', layerId: 'population' });
   state = sessionReducer(state, { type: 'toggle-layer', layerId: 'roads' });
+  return state;
+};
+
+const atPlacement = (): SessionState => {
+  let state = atDataRoom();
+  state = sessionReducer(state, { type: 'go-to-stage', stage: 'data-room' });
+  state = sessionReducer(state, { type: 'go-to-stage', stage: 'placement' });
   return state;
 };
 
@@ -107,13 +89,12 @@ describe('sessionReducer', () => {
     expect(sessionReducer(state, { type: 'go-to-stage', stage: 'placement' })).toBe(state);
     state = sessionReducer(state, { type: 'select-mission', missionId: 'bookmaru-library' });
     state = sessionReducer(state, { type: 'select-priority', priorityId: 'cost' });
-    expect(sessionReducer(state, { type: 'go-to-stage', stage: 'data-room' })).toBe(state);
-    state = sessionReducer(state, { type: 'toggle-layer', layerId: 'population' });
-    state = sessionReducer(state, { type: 'toggle-layer', layerId: 'roads' });
     state = sessionReducer(state, { type: 'go-to-stage', stage: 'data-room' });
     expect(state.stage).toBe('data-room');
+    state = sessionReducer(state, { type: 'toggle-layer', layerId: 'population' });
+    state = sessionReducer(state, { type: 'toggle-layer', layerId: 'roads' });
     state = sessionReducer(state, { type: 'go-to-stage', stage: 'placement' });
-    expect(state.stage).toBe('data-room');
+    expect(state.stage).toBe('placement');
   });
 
   it('allows one-stage backward movement while preserving learner evidence', () => {
@@ -170,6 +151,85 @@ describe('sessionReducer', () => {
     expect(restarted).toEqual(createInitialSession());
     expect(restarted).not.toBe(state);
     expect(selectOpinionReady(restarted)).toBe(false);
+    expect(JSON.parse(JSON.stringify(restarted))).toEqual(restarted);
+  });
+
+  it('exposes the current-stage gate through selectCanAdvance and throws outside its provider', () => {
+    let state = sessionReducer(createInitialSession(), { type: 'select-mission', missionId: 'bookmaru-library' });
+    expect(selectCanAdvance(state)).toBe(false);
+    state = sessionReducer(state, { type: 'select-priority', priorityId: 'cost' });
+    expect(selectCanAdvance(state)).toBe(true);
+    function MissingProvider() {
+      useSession();
+      return null;
+    }
+    expect(() => render(createElement(MissingProvider))).toThrow('SessionProvider 안에서만');
+  });
+
+  it('uses the current stage gate for each of the five forward transitions', () => {
+    let state = sessionReducer(createInitialSession(), { type: 'select-mission', missionId: 'bookmaru-library' });
+    expect(sessionReducer(state, { type: 'go-to-stage', stage: 'data-room' })).toBe(state);
+    state = sessionReducer(state, { type: 'select-priority', priorityId: 'access-equity' });
+    state = sessionReducer(state, { type: 'go-to-stage', stage: 'data-room' });
+    expect(state.stage).toBe('data-room');
+    expect(sessionReducer(state, { type: 'go-to-stage', stage: 'placement' })).toBe(state);
+    state = sessionReducer(state, { type: 'toggle-layer', layerId: 'population' });
+    state = sessionReducer(state, { type: 'toggle-layer', layerId: 'roads' });
+    state = sessionReducer(state, { type: 'go-to-stage', stage: 'placement' });
+    expect(state.stage).toBe('placement');
+    state = sessionReducer(state, { type: 'place-facility', placement: libraryPlacement });
+    state = sessionReducer(state, { type: 'go-to-stage', stage: 'analysis' });
+    expect(state.stage).toBe('analysis');
+    state = sessionReducer(state, { type: 'store-analysis', analysis: makeAnalysis() });
+    state = sessionReducer(state, { type: 'go-to-stage', stage: 'resident-view' });
+    expect(state.stage).toBe('resident-view');
+    state = sessionReducer(state, { type: 'select-underserved-zone', zoneId: 'mulbit-north' });
+    state = sessionReducer(state, { type: 'save-proposal', proposal: proposal('a') });
+    state = sessionReducer(state, { type: 'go-to-stage', stage: 'placement' });
+    state = sessionReducer(state, { type: 'place-facility', placement: { ...libraryPlacement, candidateId: 'mulbit-b2' } });
+    state = sessionReducer(state, { type: 'store-analysis', analysis: makeAnalysis([{ ...libraryPlacement, candidateId: 'mulbit-b2' }]) });
+    state = sessionReducer(state, { type: 'save-proposal', proposal: proposal('b', [{ ...libraryPlacement, candidateId: 'mulbit-b2' }]) });
+    state = sessionReducer(state, { type: 'go-to-stage', stage: 'analysis' });
+    state = sessionReducer(state, { type: 'select-underserved-zone', zoneId: 'mulbit-north' });
+    state = sessionReducer(state, { type: 'go-to-stage', stage: 'resident-view' });
+    expect(sessionReducer(state, { type: 'go-to-stage', stage: 'opinion' }).stage).toBe('opinion');
+  });
+
+  it('rejects fabricated, incomplete, or non-deterministic analysis before storing it', () => {
+    let state = atPlacement();
+    state = sessionReducer(state, { type: 'place-facility', placement: libraryPlacement });
+    const valid = makeAnalysis();
+    expect(sessionReducer(state, { type: 'store-analysis', analysis: { ...valid, perFacility: {} } })).toBe(state);
+    expect(sessionReducer(state, { type: 'store-analysis', analysis: { ...valid, nearestFacilityAccess: { ...valid.nearestFacilityAccess, populationWeightedAverage: 999 } } })).toBe(state);
+    expect(sessionReducer(state, { type: 'store-analysis', analysis: { ...valid, totalCostTokens: 999 } })).toBe(state);
+    expect(sessionReducer(state, { type: 'store-analysis', analysis: { ...valid, nearestFacilityAccess: { ...valid.nearestFacilityAccess, zoneTravel: [] } } })).toBe(state);
+    const combined = sessionReducer(atDataRoom(), { type: 'select-mission', missionId: 'combined-review' });
+    expect(sessionReducer(combined, { type: 'store-analysis', analysis: valid })).toBe(combined);
+  });
+
+  it('rejects invalid intermediate placements but allows valid slot replacement', () => {
+    let state = sessionReducer(createInitialSession(), { type: 'select-mission', missionId: 'combined-review' });
+    const library: FacilityPlacement = { slotId: 'library-1', facilityKind: 'library', candidateId: 'maru-c2' };
+    const health: FacilityPlacement = { slotId: 'health-support-1', facilityKind: 'health-support', candidateId: 'maru-d3' };
+    expect(sessionReducer(state, { type: 'place-facility', placement: { ...library, slotId: '__proto__' } })).toBe(state);
+    expect(sessionReducer(state, { type: 'place-facility', placement: { ...library, slotId: 'unknown-1' } })).toBe(state);
+    state = sessionReducer(state, { type: 'place-facility', placement: library });
+    expect(sessionReducer(state, { type: 'place-facility', placement: { ...health, slotId: 'library-1', candidateId: 'maru-d3' } }).placements).toEqual([{ ...health, slotId: 'library-1' }]);
+    state = sessionReducer(state, { type: 'place-facility', placement: health });
+    expect(sessionReducer(state, { type: 'place-facility', placement: { ...health, slotId: 'health-support-2' } })).toBe(state);
+    expect(sessionReducer(state, { type: 'place-facility', placement: { ...library, candidateId: 'maru-d3' } })).toBe(state);
+  });
+
+  it('only selects an underserved zone present in a fresh analysis row', () => {
+    let state = atPlacement();
+    expect(sessionReducer(state, { type: 'select-underserved-zone', zoneId: 'mulbit-north' })).toBe(state);
+    state = sessionReducer(state, { type: 'place-facility', placement: libraryPlacement });
+    const analysis = makeAnalysis();
+    state = sessionReducer(state, { type: 'store-analysis', analysis });
+    const missingRow = { ...state, analysis: { ...analysis, nearestFacilityAccess: { ...analysis.nearestFacilityAccess, zoneTravel: [] } } };
+    expect(sessionReducer(missingRow, { type: 'select-underserved-zone', zoneId: 'mulbit-north' })).toBe(missingRow);
+    expect(sessionReducer(state, { type: 'select-underserved-zone', zoneId: 'not-a-zone' })).toBe(state);
+    expect(sessionReducer(state, { type: 'select-underserved-zone', zoneId: 'mulbit-north' }).evidence.selectedUnderservedZoneIds).toEqual(['mulbit-north']);
   });
 
 });
