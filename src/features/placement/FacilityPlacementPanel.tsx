@@ -74,6 +74,7 @@ export function FacilityPlacementPanel() {
   const canPlace = (slot: PlacementSlotView): boolean => {
     if (selectedCandidate === undefined) return false;
     if (state.placements.some((placement) => placement.candidateId === selectedCandidate.id && placement.slotId !== slot.slotId)) return false;
+    if (state.placements.some((placement) => placement.slotId === slot.slotId && placement.candidateId === selectedCandidate.id)) return false;
     const next = placementForSlot(slot);
     if (next === null) return false;
     return getRemainingBudget(mission, city, [...state.placements.filter((placement) => placement.slotId !== slot.slotId), next]) >= 0;

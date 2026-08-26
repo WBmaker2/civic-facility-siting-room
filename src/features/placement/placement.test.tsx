@@ -11,7 +11,9 @@ import { FacilityPlacementPanel } from './FacilityPlacementPanel';
 
 afterEach(cleanup);
 
-function SeedPlacement({ missionId }: { missionId: 'bookmaru-library' | 'combined-review' }) {
+type PlacementMissionId = 'bookmaru-library' | 'combined-review' | 'living-culture-center';
+
+function SeedPlacement({ missionId }: { missionId: PlacementMissionId }) {
   const { dispatch } = useSession();
   useEffect(() => {
     dispatch({ type: 'select-mission', missionId });
@@ -24,7 +26,7 @@ function SeedPlacement({ missionId }: { missionId: 'bookmaru-library' | 'combine
   return null;
 }
 
-function renderPlacement(missionId: 'bookmaru-library' | 'combined-review') {
+function renderPlacement(missionId: PlacementMissionId) {
   return render(
     <SessionProvider>
       <SeedPlacement missionId={missionId} />
@@ -114,6 +116,7 @@ describe('FacilityPlacementPanel', () => {
     await screen.findByRole('radio', { name: /솔마루 터.*B2/ });
     await user.click(screen.getByRole('radio', { name: /솔마루 터.*B2/ }));
     await user.click(screen.getByRole('button', { name: '도서관 1곳 시설 배치' }));
+    expect(screen.getByRole('button', { name: '도서관 1곳 시설 배치' })).toBeDisabled();
     expect(screen.getByRole('button', { name: '건강 도움소 1곳 시설 배치' })).toBeDisabled();
     expect(screen.getByText(/다른 시설 슬롯에서 이미 사용 중/)).toBeInTheDocument();
   });
@@ -162,6 +165,49 @@ describe('FacilityPlacementPanel', () => {
     expect(screen.getByText(/연결 도로 없음/)).toBeInTheDocument();
   });
 
+  it('matches exact fixture descriptions for every Mulbit and Maru candidate', async () => {
+    const expected: Array<{
+      missionId: PlacementMissionId;
+      cityId: 'mulbit' | 'maru';
+      cityLabel: string;
+      sites: Record<string, { risk: string; roads: string }>;
+    }> = [
+      {
+        missionId: 'bookmaru-library', cityId: 'mulbit', cityLabel: '물빛',
+        sites: {
+          'mulbit-b2': { risk: '위험 표지 없음', roads: '연결 도로 4개 · 이동 단위 1' },
+          'mulbit-c3': { risk: '위험 표지 없음', roads: '연결 도로 4개 · 이동 단위 1' },
+          'mulbit-c4': { risk: '위험 표지 없음', roads: '연결 도로 4개 · 이동 단위 1' },
+          'mulbit-d3': { risk: '위험 표지 없음', roads: '연결 도로 4개 · 이동 단위 1' },
+          'mulbit-a4-water': { risk: '위험 표지: 비가 오면 물이 고일 수 있는 표지', roads: '연결 도로 3개 · 이동 단위 1' },
+          'mulbit-e5-island': { risk: '위험 표지 없음', roads: '연결 도로 없음' },
+        },
+      },
+      {
+        missionId: 'combined-review', cityId: 'maru', cityLabel: '마루',
+        sites: {
+          'maru-b2': { risk: '위험 표지 없음', roads: '연결 도로 4개 · 이동 단위 1~2' },
+          'maru-c2': { risk: '위험 표지 없음', roads: '연결 도로 4개 · 이동 단위 1~2' },
+          'maru-d3': { risk: '위험 표지 없음', roads: '연결 도로 4개 · 이동 단위 1' },
+          'maru-e3': { risk: '위험 표지 없음', roads: '연결 도로 3개 · 이동 단위 1' },
+          'maru-a5-slope': { risk: '위험 표지: 경사가 가파른 표지', roads: '연결 도로 2개 · 이동 단위 1' },
+          'maru-e1-premium': { risk: '위험 표지 없음', roads: '연결 도로 2개 · 이동 단위 1' },
+        },
+      },
+    ];
+    for (const scenario of expected) {
+      renderPlacement(scenario.missionId);
+      const city = CITIES[scenario.cityId];
+      await screen.findByRole('radio', { name: new RegExp(`${city.candidates[0]!.name}.*${city.candidates[0]!.coordinate.label}`) });
+      for (const candidate of city.candidates) {
+        const details = scenario.sites[candidate.id];
+        const radio = screen.getByRole('radio', { name: new RegExp(`${candidate.name}.*${scenario.cityLabel} ${candidate.coordinate.label}`) });
+        expect(radio).toHaveAccessibleDescription(`좌표 ${candidate.coordinate.label} · 비용 ${candidate.costTokens}토큰 · ${details!.risk} · ${details!.roads}`);
+      }
+      cleanup();
+    }
+  });
+
   it('replaces the current slot and refreshes its budget and coordinate text', async () => {
     const user = userEvent.setup();
     renderPlacement('bookmaru-library');
@@ -173,5 +219,15 @@ describe('FacilityPlacementPanel', () => {
     await user.click(screen.getByRole('button', { name: '시설 배치' }));
     expect(screen.getByText('책마루 도서관 배치: B2')).toBeInTheDocument();
     expect(screen.getByText('남은 예산 토큰 2')).toBeInTheDocument();
+  });
+
+  it('disables a single-slot no-op while keeping the reason visible', async () => {
+    const user = userEvent.setup();
+    renderPlacement('bookmaru-library');
+    await screen.findByRole('radio', { name: /느린 강변 터.*B2/ });
+    await user.click(screen.getByRole('radio', { name: /느린 강변 터.*B2/ }));
+    await user.click(screen.getByRole('button', { name: '시설 배치' }));
+    expect(screen.getByRole('button', { name: '시설 배치' })).toBeDisabled();
+    expect(screen.getByText('현재 배치와 같습니다.')).toBeInTheDocument();
   });
 });
