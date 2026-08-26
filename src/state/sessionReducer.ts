@@ -2,6 +2,7 @@ import { CITIES } from '../domain/cities';
 import { MISSIONS } from '../domain/missions';
 import type { AccessMetrics, DataLayerId, FacilityPlacement, LearningEvidence, OpinionDraft, PlacementAnalysis, PriorityId, ProposalSnapshot, SessionState, StageId } from '../domain/types';
 import { analyzePlacement } from '../engine/analyzePlacement';
+import { validatePlacements } from '../domain/placementRules';
 import { STAGE_ORDER, type SessionAction } from './sessionTypes';
 
 const DATA_LAYERS: readonly DataLayerId[] = ['population', 'roads', 'risk', 'cost', 'existing-facilities'];
@@ -67,42 +68,10 @@ export const hasValidIntakeContext = (state: SessionState): boolean => {
   const city = cityForId(state.cityId);
   return mission !== undefined && city !== undefined && PRIORITIES.includes(state.priorityId) && mission.cityId === city.id;
 };
-const UNSAFE_SLOT_IDS = new Set(['__proto__', 'constructor', 'prototype']);
-
-const allowedSlotIds = (facilityKinds: readonly string[]): Set<string> => {
-  const counts = new Map<string, number>();
-  return new Set(facilityKinds.map((kind) => {
-    const next = (counts.get(kind) ?? 0) + 1;
-    counts.set(kind, next);
-    return `${kind}-${next}`;
-  }));
-};
-
-const slotFacilityKinds = (facilityKinds: readonly string[]): Map<string, string> => {
-  const counts = new Map<string, number>();
-  const result = new Map<string, string>();
-  for (const facilityKind of facilityKinds) {
-    const next = (counts.get(facilityKind) ?? 0) + 1;
-    counts.set(facilityKind, next);
-    result.set(`${facilityKind}-${next}`, facilityKind);
-  }
-  return result;
-};
-
 export const isPlacementComplete = (state: SessionState): boolean => {
   const mission = missionForState(state); const city = cityForId(state.cityId);
   if (mission === undefined || city === undefined || mission.cityId !== city.id || !Array.isArray(state.placements) || state.placements.length !== mission.facilityKinds.length) return false;
-  const allowedSlots = allowedSlotIds(mission.facilityKinds);
-  const expectedSlotKinds = slotFacilityKinds(mission.facilityKinds);
-  const candidateIds = new Set<string>(); const slotIds = new Set<string>(); const kindCounts = new Map<string, number>(); let totalCost = 0;
-  for (const placement of state.placements) {
-    if (placement === null || typeof placement !== 'object' || typeof placement.slotId !== 'string' || typeof placement.facilityKind !== 'string' || typeof placement.candidateId !== 'string' || placement.slotId.trim().length === 0 || !allowedSlots.has(placement.slotId) || UNSAFE_SLOT_IDS.has(placement.slotId)) return false;
-    const candidate = city.candidates.find((item) => item.id === placement.candidateId);
-    if (candidate === undefined || slotIds.has(placement.slotId) || candidateIds.has(placement.candidateId) || !mission.facilityKinds.includes(placement.facilityKind) || expectedSlotKinds.get(placement.slotId) !== placement.facilityKind) return false;
-    slotIds.add(placement.slotId); candidateIds.add(placement.candidateId); kindCounts.set(placement.facilityKind, (kindCounts.get(placement.facilityKind) ?? 0) + 1); totalCost += candidate.costTokens;
-  }
-  const expectedKinds = new Map<string, number>(); for (const kind of mission.facilityKinds) expectedKinds.set(kind, (expectedKinds.get(kind) ?? 0) + 1);
-  return [...expectedKinds.entries()].every(([kind, count]) => kindCounts.get(kind) === count) && totalCost <= mission.budgetTokens;
+  return validatePlacements(mission, city, state.placements);
 };
 const expectedAnalysis = (state: SessionState): PlacementAnalysis | null => {
   if (!isPlacementComplete(state) || state.cityId === null || state.missionId === null) return null;
@@ -214,21 +183,7 @@ export const selectCanAdvance = (state: SessionState): boolean => selectStageGat
 const resetAfterPlacementChange = (state: SessionState): SessionState => ({ ...state, stage: indexOfStage(state.stage) > indexOfStage('placement') ? 'placement' : state.stage, analysis: null, evidence: { ...copyEvidence(state.evidence), inspectedMetricIds: [], selectedUnderservedZoneIds: [], comparedProposalIds: [] } });
 const validPartialPlacements = (state: SessionState, placements: readonly FacilityPlacement[]): boolean => {
   const mission = missionForState(state); const city = cityForId(state.cityId);
-  if (mission === undefined || city === undefined || !Array.isArray(placements) || placements.length > mission.facilityKinds.length) return false;
-  const allowedSlots = allowedSlotIds(mission.facilityKinds);
-  const expectedSlotKinds = slotFacilityKinds(mission.facilityKinds);
-  const candidateIds = new Set<string>(); const slotIds = new Set<string>(); const kindCounts = new Map<string, number>();
-  for (const placement of placements) {
-    if (placement === null || typeof placement !== 'object' || typeof placement.slotId !== 'string' || typeof placement.facilityKind !== 'string' || typeof placement.candidateId !== 'string') return false;
-    if (UNSAFE_SLOT_IDS.has(placement.slotId) || !allowedSlots.has(placement.slotId) || slotIds.has(placement.slotId) || candidateIds.has(placement.candidateId) || expectedSlotKinds.get(placement.slotId) !== placement.facilityKind) return false;
-    if (!mission.facilityKinds.includes(placement.facilityKind) || city.candidates.every((candidate) => candidate.id !== placement.candidateId)) return false;
-    const count = (kindCounts.get(placement.facilityKind) ?? 0) + 1;
-    const expectedCount = mission.facilityKinds.filter((kind) => kind === placement.facilityKind).length;
-    if (count > expectedCount) return false;
-    slotIds.add(placement.slotId); candidateIds.add(placement.candidateId); kindCounts.set(placement.facilityKind, count);
-  }
-  const totalCost = placements.reduce((total, placement) => total + (city.candidates.find((candidate) => candidate.id === placement.candidateId)?.costTokens ?? Number.POSITIVE_INFINITY), 0);
-  return totalCost <= mission.budgetTokens;
+  return mission !== undefined && city !== undefined && validatePlacements(mission, city, placements);
 };
 const validZoneAction = (state: SessionState, zoneId: string): boolean => {
   const city = cityForId(state.cityId);
@@ -248,14 +203,22 @@ export function sessionReducer(state: SessionState, action: SessionAction): Sess
       const reviewedLayerIds = state.evidence.reviewedLayerIds.includes(action.layerId) ? [...state.evidence.reviewedLayerIds] : [...state.evidence.reviewedLayerIds, action.layerId];
       return { ...state, activeLayerIds, evidence: { ...copyEvidence(state.evidence), reviewedLayerIds } };
     }
-    case 'select-candidate': return state.selectedCandidateId === action.candidateId ? state : { ...state, selectedCandidateId: action.candidateId };
+    case 'select-candidate': {
+      const city = cityForId(state.cityId);
+      if (city === undefined || typeof action.candidateId !== 'string' || !city.candidates.some((candidate) => candidate.id === action.candidateId)) return state;
+      return state.selectedCandidateId === action.candidateId ? state : { ...state, selectedCandidateId: action.candidateId };
+    }
     case 'place-facility': {
       if (!Array.isArray(state.placements)) return state;
-      const placement = copyPlacement(action.placement); const index = state.placements.findIndex((item) => item !== null && typeof item === 'object' && item.slotId === placement.slotId); const existing = index < 0 ? undefined : state.placements[index];
-      const placements = [...state.placements]; if (index < 0) placements.push(placement); else placements[index] = placement;
-      if (!validPartialPlacements(state, placements)) return state;
-      if (existing !== undefined && existing.facilityKind === placement.facilityKind && existing.candidateId === placement.candidateId) return state;
-      return resetAfterPlacementChange({ ...state, placements });
+      try {
+        const placement = copyPlacement(action.placement); const index = state.placements.findIndex((item) => item !== null && typeof item === 'object' && item.slotId === placement.slotId); const existing = index < 0 ? undefined : state.placements[index];
+        const placements = [...state.placements]; if (index < 0) placements.push(placement); else placements[index] = placement;
+        if (!validPartialPlacements(state, placements)) return state;
+        if (existing !== undefined && existing.facilityKind === placement.facilityKind && existing.candidateId === placement.candidateId) return state;
+        return resetAfterPlacementChange({ ...state, placements });
+      } catch {
+        return state;
+      }
     }
     case 'store-analysis': {
       const expected = expectedAnalysis(state);

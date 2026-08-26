@@ -286,6 +286,30 @@ describe('sessionReducer', () => {
       placement: { slotId: 'library-1', facilityKind: 'library', candidateId: 'not-a-candidate' },
     });
     expect(malformed).toBe(state);
+    const accessor = {} as { slotId: string; facilityKind: string; candidateId: string };
+    Object.defineProperties(accessor, {
+      slotId: { get: () => { throw new Error('malformed accessor'); } },
+      facilityKind: { value: 'library' },
+      candidateId: { value: 'mulbit-c3' },
+    });
+    expect(sessionReducer(state, { type: 'place-facility', placement: accessor as FacilityPlacement })).toBe(state);
+  });
+
+  it('accepts only an own-key candidate from the assigned city and preserves identity otherwise', () => {
+    let state = atPlacement();
+    state = sessionReducer(state, { type: 'place-facility', placement: libraryPlacement });
+    state = sessionReducer(state, { type: 'store-analysis', analysis: makeAnalysis() });
+    state = sessionReducer(state, { type: 'inspect-metric', metricId: 'average' });
+    const originalEvidence = state.evidence;
+    for (const candidateId of ['maru-b2', 'not-a-candidate', null, 42]) {
+      const rejected = sessionReducer(state, { type: 'select-candidate', candidateId: candidateId as string });
+      expect(rejected).toBe(state);
+      expect(rejected.analysis).toBe(state.analysis);
+      expect(rejected.evidence).toBe(originalEvidence);
+    }
+    const selected = sessionReducer(state, { type: 'select-candidate', candidateId: 'mulbit-c3' });
+    expect(selected.selectedCandidateId).toBe('mulbit-c3');
+    expect(sessionReducer(selected, { type: 'select-candidate', candidateId: 'mulbit-c3' })).toBe(selected);
   });
 
   it('only selects an underserved zone present in a fresh analysis row', () => {

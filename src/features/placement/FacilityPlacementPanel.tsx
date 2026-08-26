@@ -1,13 +1,10 @@
-import type { FacilityKind, FacilityPlacement, MissionDefinition, CityScenario } from '../../domain/types';
+import type { FacilityKind, FacilityPlacement, MissionDefinition } from '../../domain/types';
+import { buildPlacementSlots, getRemainingBudget, validatePlacements, type PlacementSlotView } from '../../domain/placementRules';
 import { cityForId, missionForId } from '../../state/sessionReducer';
 import { useSession } from '../../state/SessionProvider';
 import { CandidateBoard } from './CandidateBoard';
 
-export interface PlacementSlotView {
-  slotId: string;
-  facilityKind: FacilityKind;
-  candidateId: string | null;
-}
+export type { PlacementSlotView } from '../../domain/placementRules';
 
 const facilityLabels: Record<FacilityKind, string> = {
   library: '도서관',
@@ -19,28 +16,6 @@ const facilityDisplayName = (mission: MissionDefinition, kind: FacilityKind): st
   if (mission.id === 'bookmaru-library' && kind === 'library') return '책마루 도서관';
   return facilityLabels[kind];
 };
-
-const slotViews = (mission: MissionDefinition, placements: readonly FacilityPlacement[]): PlacementSlotView[] => {
-  const counts = new Map<FacilityKind, number>();
-  return mission.facilityKinds.map((facilityKind) => {
-    const number = (counts.get(facilityKind) ?? 0) + 1;
-    counts.set(facilityKind, number);
-    const slotId = `${facilityKind}-${number}`;
-    return { slotId, facilityKind, candidateId: placements.find((placement) => placement.slotId === slotId)?.candidateId ?? null };
-  });
-};
-
-export function getRemainingBudget(
-  mission: MissionDefinition,
-  city: CityScenario,
-  placements: readonly FacilityPlacement[],
-): number {
-  const totalCost = placements.reduce((total, placement) => {
-    const candidate = city.candidates.find((item) => item.id === placement.candidateId);
-    return total + (candidate?.costTokens ?? Number.POSITIVE_INFINITY);
-  }, 0);
-  return mission.budgetTokens - totalCost;
-}
 
 const labelForSlot = (slot: PlacementSlotView): string => `${facilityLabels[slot.facilityKind]} ${slot.slotId.split('-').pop() ?? ''}곳`;
 
@@ -58,7 +33,16 @@ export function FacilityPlacementPanel() {
     );
   }
 
-  const slots = slotViews(mission, state.placements);
+  if (!validatePlacements(mission, city, state.placements)) {
+    return (
+      <section aria-labelledby="placement-heading" data-stage-id="placement" role="region">
+        <h2 id="placement-heading">후보 배치판</h2>
+        <p role="alert">현재 시설 배치 자료가 올바르지 않아 배치를 계속할 수 없습니다. 심의 접수에서 다시 시작해 주세요.</p>
+      </section>
+    );
+  }
+
+  const slots = buildPlacementSlots(mission, state.placements);
   const placedCandidateIds = new Set(state.placements.map((placement) => placement.candidateId));
   const selectedCandidate = city.candidates.find((candidate) => candidate.id === state.selectedCandidateId);
   const remainingBudget = getRemainingBudget(mission, city, state.placements);
@@ -121,6 +105,7 @@ export function FacilityPlacementPanel() {
                 type="button"
                 className="placement-action"
                 disabled={!canPlace(slot)}
+                aria-label={mission.id === 'combined-review' ? `${slotLabel} 시설 배치` : undefined}
                 aria-describedby={`placement-reason-${slot.slotId}`}
                 onClick={() => {
                   const placement = placementForSlot(slot);
