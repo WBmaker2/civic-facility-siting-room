@@ -1,7 +1,7 @@
-import { CITIES } from '../../domain/cities';
 import { MISSIONS } from '../../domain/missions';
 import type { MissionDefinition, PriorityId } from '../../domain/types';
 import { PRIVACY_NOTICE, SOCIAL_SAFETY_NOTICE } from '../../content/learnerCopy';
+import { cityForId, hasValidIntakeContext, missionForId } from '../../state/sessionReducer';
 import { useSession } from '../../state/SessionProvider';
 
 const PRIORITIES: ReadonlyArray<{ id: PriorityId; label: string; tradeoff: string }> = [
@@ -32,7 +32,8 @@ function facilityPurpose(mission: MissionDefinition): string {
 }
 
 function MissionCard({ mission }: { mission: MissionDefinition }) {
-  const city = CITIES[mission.cityId];
+  const city = cityForId(mission.cityId);
+  if (city === undefined) return null;
   const isCombined = mission.id === 'combined-review';
   return (
     <article aria-labelledby={`mission-${mission.id}`}>
@@ -63,8 +64,9 @@ function MissionCard({ mission }: { mission: MissionDefinition }) {
 
 export function ReviewIntake() {
   const { state, dispatch } = useSession();
-  const selectedMission = state.missionId === null ? undefined : MISSIONS[state.missionId];
-  const canEnterDataRoom = state.cityId !== null && state.missionId !== null && state.priorityId !== null;
+  const selectedMission = missionForId(state.missionId);
+  const selectedCity = selectedMission === undefined ? undefined : cityForId(selectedMission.cityId);
+  const canEnterDataRoom = hasValidIntakeContext(state);
 
   return (
     <section aria-labelledby="stage-heading" data-stage-id="intake" role="region">
@@ -90,10 +92,10 @@ export function ReviewIntake() {
         {MISSION_LIST.map((mission) => <MissionCard key={mission.id} mission={mission} />)}
       </div>
 
-      {selectedMission && (
+      {selectedMission && selectedCity && selectedMission.cityId === state.cityId && (
         <aside aria-label="선택한 미션 요약">
           <h3>선택한 미션</h3>
-          <p>{selectedMission.title} · 배정 도시: {CITIES[selectedMission.cityId].name}</p>
+          <p>{selectedMission.title} · 배정 도시: {selectedCity.name}</p>
           <p>{facilityPurpose(selectedMission)}</p>
         </aside>
       )}
