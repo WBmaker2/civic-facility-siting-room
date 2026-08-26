@@ -1,5 +1,13 @@
 import { expect, test } from '@playwright/test';
-import { chooseIntake, installConsoleGuards, inspectAndOpenResident, placeSingle, reviewLayers } from './flow-helpers';
+import { assertLocalhostRequests, chooseIntake, installConsoleGuards, inspectAndOpenResident, isForbiddenRequestPath, placeSingle, reviewLayers } from './flow-helpers';
+
+test('rejects known analytics, map, AI, login, and submission request variants', () => {
+  for (const path of ['/analytics', '/analytics.js', '/maps.js', '/geocoding/search', '/ai-recommend', '/login-callback', '/submit-opinion', '/submission']) {
+    expect(isForbiddenRequestPath(path), path).toBe(true);
+  }
+  expect(() => assertLocalhostRequests(['https://evil.example/ok'])).toThrow();
+  expect(() => assertLocalhostRequests(['http://127.0.0.1:5173/maps.js'])).toThrow();
+});
 
 test('resets learner input on reload and remains localhost-only', async ({ page }) => {
   installConsoleGuards(page);
@@ -28,10 +36,5 @@ test('resets learner input on reload and remains localhost-only', async ({ page 
   await expect(page.getByText('DISTINCTIVE_LEARNER_TEXT_2026')).toHaveCount(0);
   await expect(page.getByRole('radio', { name: /느린 강변 터.*물빛 B2/ })).toHaveCount(0);
 
-  const forbidden = /analytics|\/(?:maps?|geocod(?:ing)?|openai|gemini|ai|login|auth|submit(?:mission)?)(?:\/|$)|submission/i;
-  for (const rawUrl of requests) {
-    const url = new URL(rawUrl);
-    expect(url.hostname, rawUrl).toBe('127.0.0.1');
-    expect(`${url.pathname}${url.search}`, rawUrl).not.toMatch(forbidden);
-  }
+  assertLocalhostRequests(requests);
 });

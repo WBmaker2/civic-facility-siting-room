@@ -15,7 +15,7 @@ export const UPDATE_HISTORY: readonly UpdateEntry[] = Object.freeze([
   freezeEntry({
     date: '2026-08-27',
     category: '개선',
-    summaries: ['375px 모바일 지도·표 컨테이너의 가로 넘침 방지'],
+    summaries: ['375px 모바일 지도·표 내부 스크롤과 reflow, 자료층 확인 강조·범례 이름 보강'],
   }),
   freezeEntry({
     date: '2026-08-27',

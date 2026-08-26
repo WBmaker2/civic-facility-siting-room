@@ -422,7 +422,7 @@ describe('GridMap and CityDataTable contracts', () => {
     expect(getComputedStyle(button).minHeight).toBe('44px');
     expect(getComputedStyle(input).minHeight).toBe('44px');
     expect(getComputedStyle(select).minHeight).toBe('44px');
-    expect(getComputedStyle(document.body).overflowX).toBe('hidden');
+    expect(getComputedStyle(document.body).overflowX).not.toBe('hidden');
     expect(getComputedStyle(grid).overflow).toBe('auto');
     expect(getComputedStyle(table).overflowX).toBe('auto');
     const mediaRule = [...document.styleSheets].flatMap((sheet) => [...sheet.cssRules]).find((rule) => rule.cssText.includes('max-width: 600px'));

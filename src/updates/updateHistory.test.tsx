@@ -13,7 +13,7 @@ afterEach(() => {
 describe('UPDATE_HISTORY', () => {
   it('keeps the exact dated entries newest first and immutable', () => {
     expect(UPDATE_HISTORY).toEqual([
-      { date: '2026-08-27', category: '개선', summaries: ['375px 모바일 지도·표 컨테이너의 가로 넘침 방지'] },
+      { date: '2026-08-27', category: '개선', summaries: ['375px 모바일 지도·표 내부 스크롤과 reflow, 자료층 확인 강조·범례 이름 보강'] },
       {
         date: '2026-08-27',
         category: '개발',

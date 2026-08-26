@@ -18,7 +18,7 @@ const LAYER_MEANINGS: Record<DataLayerId, LayerMeaning> = {
 export function LayerLegend({ activeLayerIds }: { activeLayerIds: DataLayerId[] }) {
   if (activeLayerIds.length === 0) return <p>자료층을 켜면 아이콘·무늬·설명이 여기에 나타납니다.</p>;
   return (
-    <div aria-labelledby="layer-legend-heading">
+    <div aria-label="켜진 자료층 범례" aria-labelledby="layer-legend-heading">
       <h3 id="layer-legend-heading">켜진 자료층 범례</h3>
       <ul>
         {activeLayerIds.map((layerId) => {
