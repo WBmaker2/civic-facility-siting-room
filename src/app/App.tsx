@@ -2,6 +2,8 @@ import { ProgressStepper } from '../navigation/ProgressStepper';
 import { SessionProvider, useSession } from '../state/SessionProvider';
 import { STAGE_LABELS } from '../state/sessionTypes';
 import { MODEL_LIMIT_NOTICE } from '../content/learnerCopy';
+import { ReviewIntake } from '../features/intake/ReviewIntake';
+import { CityDataRoom } from '../features/city-data/CityDataRoom';
 
 function StagePlaceholder() {
   const { state } = useSession();
@@ -16,12 +18,17 @@ function StagePlaceholder() {
 
 function SessionShell() {
   const { state } = useSession();
+  const stage = state.stage === 'intake'
+    ? <ReviewIntake />
+    : state.stage === 'data-room'
+      ? <CityDataRoom />
+      : <StagePlaceholder />;
   return (
     <main>
       <h1>도시 기능 입지 심의실</h1>
       <p role="note">{MODEL_LIMIT_NOTICE}</p>
       <ProgressStepper currentStage={state.stage} />
-      <StagePlaceholder />
+      {stage}
     </main>
   );
 }
