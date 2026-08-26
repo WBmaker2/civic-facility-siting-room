@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CITIES } from '../domain/cities';
 import { MISSIONS } from '../domain/missions';
 import { FEEDBACK_PROMPTS } from '../content/learnerCopy';
-import type { LearningEvidence, PlacementAnalysis } from '../domain/types';
+import type { LearningEvidence, MissionDefinition, PlacementAnalysis } from '../domain/types';
 import { analyzePlacement } from './analyzePlacement';
 import { assessProposal } from './assessProposal';
 
@@ -50,17 +50,107 @@ describe('assessProposal', () => {
   });
 
   it.each([
-    ['bookmaru-library', ['mulbit-b2'], ['mulbit-c3']],
-    ['health-help-center', ['maru-c2'], ['maru-d3']],
-    ['living-culture-center', ['mulbit-c4'], ['mulbit-d3']],
-    ['combined-review', ['maru-b2', 'maru-d3'], ['maru-c2', 'maru-e3']],
-  ] as const)('keeps named %s proposals visibly different in their trade-offs', (missionId, firstIds, secondIds) => {
+    ['bookmaru-library', ['mulbit-b2'], ['mulbit-c3'], '배치 비용 1토큰 / 공개 한도 3토큰입니다.', '배치 비용 2토큰 / 공개 한도 3토큰입니다.'],
+    ['health-help-center', ['maru-c2'], ['maru-d3'], '이동이 불편한 구역의 가장 긴 이동 단위 3 / 공개 한도 6입니다.', '이동이 불편한 구역의 가장 긴 이동 단위 5 / 공개 한도 6입니다.'],
+    ['living-culture-center', ['mulbit-c4'], ['mulbit-d3'], '비용 2토큰 / 우선 기준 공개 한도 2토큰입니다.', '비용 3토큰 / 우선 기준 공개 한도 2토큰입니다.'],
+    ['combined-review', ['maru-b2', 'maru-d3'], ['maru-c2', 'maru-e3'], '가장 긴 이동 단위 3 / 공개 한도 7입니다.', '가장 긴 이동 단위 4 / 공개 한도 7입니다.'],
+  ] as const)('keeps named %s proposals visibly different in public metric evidence', (missionId, firstIds, secondIds, firstEvidence, secondEvidence) => {
     const mission = MISSIONS[missionId];
     const first = assessProposal(mission, 'access-equity', analysisFor(missionId, firstIds), evidenceFor(mission.cityId));
     const second = assessProposal(mission, 'access-equity', analysisFor(missionId, secondIds), evidenceFor(mission.cityId));
-    const firstText = first.conditionResults.map((result) => result.evidenceText).join(' ');
-    const secondText = second.conditionResults.map((result) => result.evidenceText).join(' ');
-    expect(firstText).not.toBe(secondText);
+    const findEvidence = (assessment: typeof first, code: string): string => assessment.conditionResults.find((result) => result.code === code)?.evidenceText ?? '';
+    const code = missionId === 'health-help-center' ? 'MOBILITY_BARRIER_TRAVEL_WITHIN_LIMIT' : missionId === 'combined-review' ? 'WORST_TRAVEL_WITHIN_LIMIT' : missionId === 'living-culture-center' ? 'COST_WITHIN_PRIORITY_CAP' : 'WITHIN_BUDGET';
+    expect(findEvidence(first, code)).toBe(firstEvidence);
+    expect(findEvidence(second, code)).toBe(secondEvidence);
+  });
+
+  it('accepts mission context arrays in a different order without mutating them', () => {
+    const mission = MISSIONS['combined-review'];
+    const analysis = analysisFor('combined-review', ['maru-b2', 'maru-d3']);
+    const originalKinds = [...analysis.missionContext.facilityKinds];
+    const originalCodes = [...analysis.missionContext.conditionCodes];
+    const reordered = {
+      ...analysis,
+      missionContext: {
+        ...analysis.missionContext,
+        facilityKinds: [...analysis.missionContext.facilityKinds].reverse(),
+        conditionCodes: [...analysis.missionContext.conditionCodes].reverse(),
+      },
+    };
+    const assessment = assessProposal(mission, 'access-equity', reordered, completeEvidence);
+    expect(assessment.verdict).toBe('valid-with-tradeoffs');
+    expect(assessment.priorityConsistent).toBe(true);
+    expect(analysis.missionContext.facilityKinds).toEqual(originalKinds);
+    expect(analysis.missionContext.conditionCodes).toEqual(originalCodes);
+  });
+
+  it.each([
+    ['missing', (codes: readonly string[]) => codes.slice(0, -1)],
+    ['duplicated', (codes: readonly string[]) => [...codes.slice(0, -1), codes.at(-1), codes.at(-1)]],
+    ['altered', (codes: readonly string[]) => codes.map((code, index) => index === 0 ? `${code}-tampered` : code)],
+  ] as const)('rejects %s mission context condition provenance', (_label, changeCodes) => {
+    const analysis = analysisFor('combined-review', ['maru-b2', 'maru-d3']);
+    const changed = {
+      ...analysis,
+      missionContext: { ...analysis.missionContext, conditionCodes: changeCodes(analysis.missionContext.conditionCodes) },
+    } as PlacementAnalysis;
+    expect(assessProposal(MISSIONS['combined-review'], 'access-equity', changed, completeEvidence).verdict).toBe('revise');
+  });
+
+  it('fails closed when required facility mix has a null public limit', () => {
+    const mission: MissionDefinition = {
+      ...MISSIONS['combined-review'],
+      conditions: MISSIONS['combined-review'].conditions.map((condition) => condition.code === 'REQUIRED_FACILITY_MIX'
+        ? { ...condition, numericLimit: null }
+        : condition),
+    };
+    const assessment = assessProposal(mission, 'access-equity', analysisFor('combined-review', ['maru-b2', 'maru-d3']), completeEvidence);
+    expect(assessment.conditionResults.find((result) => result.code === 'REQUIRED_FACILITY_MIX')?.passed).toBe(false);
+    expect(assessment.verdict).toBe('revise');
+  });
+
+  it.each([
+    ['bookmaru-library', 'WITHIN_BUDGET', ['mulbit-b2']],
+    ['bookmaru-library', 'NO_UNREACHABLE_ZONE', ['mulbit-b2']],
+    ['bookmaru-library', 'WORST_TRAVEL_WITHIN_LIMIT', ['mulbit-b2']],
+    ['bookmaru-library', 'NO_RISK_SITE', ['mulbit-b2']],
+    ['bookmaru-library', 'COST_WITHIN_PRIORITY_CAP', ['mulbit-b2']],
+    ['health-help-center', 'MOBILITY_BARRIER_TRAVEL_WITHIN_LIMIT', ['maru-c2']],
+    ['living-culture-center', 'COVERAGE_GAP_WITHIN_LIMIT', ['mulbit-c4']],
+    ['combined-review', 'DISTINCT_CANDIDATE_SITES', ['maru-b2', 'maru-d3']],
+    ['combined-review', 'REQUIRED_FACILITY_MIX', ['maru-b2', 'maru-d3']],
+  ] as const)('does not pass %s when %s numericLimit is null', (missionId, code, candidateIds) => {
+    const source = MISSIONS[missionId];
+    const mission: MissionDefinition = {
+      ...source,
+      conditions: source.conditions.map((condition) => condition.code === code
+        ? { ...condition, numericLimit: null }
+        : condition),
+    };
+    const result = assessProposal(mission, 'access-equity', analysisFor(missionId, candidateIds), completeEvidence)
+      .conditionResults.find((condition) => condition.code === code);
+    expect(result?.passed).toBe(false);
+  });
+
+  it.each([
+    ['duplicate priority codes', (codes: readonly string[]) => [codes[0], codes[0]]],
+    ['unknown priority code', (codes: readonly string[]) => [...codes, 'NOT_A_CONDITION']],
+    ['empty priority rule', () => []],
+  ] as const)('fails closed for a %s', (_label, changeCodes) => {
+    const source = MISSIONS['bookmaru-library'];
+    const mission: MissionDefinition = {
+      ...source,
+      priorityRules: { ...source.priorityRules, 'access-equity': changeCodes(source.priorityRules['access-equity']) as MissionDefinition['priorityRules']['access-equity'] },
+    };
+    const assessment = assessProposal(mission, 'access-equity', analysisFor('bookmaru-library', ['mulbit-b2']), completeEvidence);
+    expect(assessment.priorityConsistent).toBe(false);
+    expect(assessment.verdict).toBe('revise');
+  });
+
+  it('fails closed for a PriorityId value outside the runtime type', () => {
+    const assessment = assessProposal(MISSIONS['bookmaru-library'], 'not-a-priority' as unknown as 'access-equity', analysisFor('bookmaru-library', ['mulbit-b2']), completeEvidence);
+    expect(assessment.priorityConsistent).toBe(false);
+    expect(assessment.verdict).toBe('revise');
   });
 
   it('rejects average-only, underserved-missing, and alternative-missing evidence', () => {

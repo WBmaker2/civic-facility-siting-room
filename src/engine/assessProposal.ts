@@ -18,8 +18,18 @@ const EVIDENCE_GATES = {
 
 const PRIORITIES: readonly PriorityId[] = ['access-equity', 'safety', 'cost'];
 
-const sameItems = (left: readonly string[], right: readonly string[]): boolean =>
-  left.length === right.length && left.every((item, index) => item === right[index]);
+const sameItems = (left: readonly string[], right: readonly string[]): boolean => {
+  if (left.length !== right.length) return false;
+  const counts = new Map<string, number>();
+  for (const item of left) counts.set(item, (counts.get(item) ?? 0) + 1);
+  for (const item of right) {
+    const count = counts.get(item);
+    if (count === undefined) return false;
+    if (count === 1) counts.delete(item);
+    else counts.set(item, count - 1);
+  }
+  return counts.size === 0;
+};
 
 const hasMissionContext = (mission: MissionDefinition, analysis: PlacementAnalysis): boolean => {
   const context = analysis.missionContext;
@@ -85,7 +95,7 @@ const evaluateCondition = (
     case 'REQUIRED_FACILITY_MIX': {
       const actual = analysis.placements.map((placement) => placement.facilityKind).sort();
       const expected = [...mission.facilityKinds].sort();
-      const passed = sameItems(actual, expected) && (limit === null || actual.length === limit);
+      const passed = limit !== null && sameItems(actual, expected) && actual.length === limit;
       return { passed, evidenceText: `배치 시설 ${actual.join('·') || '없음'} / 공개 기준 ${expected.join('·')}입니다.` };
     }
     default: {
@@ -127,9 +137,14 @@ export function assessProposal(
   });
   const resultByCode = new Map(conditionResults.map((result) => [result.code, result]));
   const selectedCodes = PRIORITIES.includes(priorityId) ? mission.priorityRules[priorityId] : undefined;
-  const priorityConsistent = contextValid
-    && selectedCodes !== undefined
+  const knownConditionCodes = new Set(mission.conditions.map((condition) => condition.code));
+  const priorityRuleIsPublicAndUnique = selectedCodes !== undefined
     && selectedCodes.length > 0
+    && new Set(selectedCodes).size === selectedCodes.length
+    && selectedCodes.every((code) => knownConditionCodes.has(code) && resultByCode.has(code));
+  const priorityConsistent = contextValid
+    && priorityRuleIsPublicAndUnique
+    && selectedCodes !== undefined
     && selectedCodes.every((code) => resultByCode.get(code)?.passed === true);
   const missingEvidence = buildMissingEvidence(evidence);
   if (!contextValid) missingEvidence.unshift('선택한 미션과 같은 도시·미션으로 영향 결과를 다시 계산하세요.');
