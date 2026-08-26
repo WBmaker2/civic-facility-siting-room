@@ -14,6 +14,11 @@ function freezeEntry(entry: UpdateEntry): UpdateEntry {
 export const UPDATE_HISTORY: readonly UpdateEntry[] = Object.freeze([
   freezeEntry({
     date: '2026-08-27',
+    category: '개선',
+    summaries: ['375px 모바일 지도·표 컨테이너의 가로 넘침 방지'],
+  }),
+  freezeEntry({
+    date: '2026-08-27',
     category: '개발',
     summaries: [
       '가상 도시 2종과 미션 4종 구현',

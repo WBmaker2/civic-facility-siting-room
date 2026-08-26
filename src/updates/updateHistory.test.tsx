@@ -13,6 +13,7 @@ afterEach(() => {
 describe('UPDATE_HISTORY', () => {
   it('keeps the exact dated entries newest first and immutable', () => {
     expect(UPDATE_HISTORY).toEqual([
+      { date: '2026-08-27', category: '개선', summaries: ['375px 모바일 지도·표 컨테이너의 가로 넘침 방지'] },
       {
         date: '2026-08-27',
         category: '개발',
@@ -26,7 +27,7 @@ describe('UPDATE_HISTORY', () => {
     ] satisfies readonly UpdateEntry[]);
     expect(UPDATE_HISTORY.every((entry) => /^\d{4}-\d{2}-\d{2}$/.test(entry.date))).toBe(true);
     expect(UPDATE_HISTORY[0]?.date).toBe('2026-08-27');
-    expect((UPDATE_HISTORY[0]?.date ?? '') > (UPDATE_HISTORY[1]?.date ?? '')).toBe(true);
+    expect((UPDATE_HISTORY[0]?.date ?? '') >= (UPDATE_HISTORY[1]?.date ?? '')).toBe(true);
     expect(Object.isFrozen(UPDATE_HISTORY)).toBe(true);
     expect(UPDATE_HISTORY.every((entry) => Object.isFrozen(entry) && Object.isFrozen(entry.summaries))).toBe(true);
   });

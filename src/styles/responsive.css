@@ -1,6 +1,6 @@
 @media (max-width: 600px) {
   main { width: min(100% - 1rem, 72rem); padding-top: var(--space-4); }
-  .city-data-views { padding: var(--space-2); }
+  .city-data-views { max-width: 100%; overflow: hidden; padding: var(--space-2); }
   .view-tabs { position: sticky; top: 0; z-index: 1; background: var(--color-surface); }
   .view-tabs button { flex: 1; }
   .city-grid { min-width: 23rem; }
@@ -12,4 +12,14 @@
 
 @media (min-width: 601px) {
   .view-tabs button { min-width: 8rem; }
+}
+
+@media (max-width: 600px) {
+  .impact-panels, .impact-results-panel, .impact-selection-panel, .calculation-basis {
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .calculation-row { grid-template-columns: minmax(0, 0.4fr) minmax(0, 1fr); }
+  .calculation-row dd { min-width: 0; overflow-wrap: anywhere; }
 }
