@@ -1,4 +1,6 @@
 import type { CityScenario, FacilityKind, MissionDefinition, ProposalComparison, ProposalSnapshot } from '../../domain/types';
+import { CITIES } from '../../domain/cities';
+import { MISSIONS } from '../../domain/missions';
 import { compareProposals } from '../../engine/proposalComparison';
 import { sameSerializableValue } from '../../engine/validatePlacementAnalysis';
 
@@ -19,18 +21,21 @@ const facilityLabels: Record<FacilityKind, string> = {
 const metricText = (value: number | null, suffix = ' 이동 단위'): string => value === null ? '계산 불가' : `${value.toFixed(1)}${suffix}`;
 const deltaText = (value: number | null, suffix = ' 이동 단위', decimal = false): string => value === null ? '계산 불가' : `${value > 0 ? '+' : ''}${decimal ? value.toFixed(1) : value}${suffix}`;
 
-const isValidCity = (city: unknown): city is CityScenario => {
-  if (city === null || typeof city !== 'object') return false;
-  const record = city as Partial<CityScenario>;
-  return (record.id === 'mulbit' || record.id === 'maru') && typeof record.name === 'string'
-    && Array.isArray(record.candidates) && Array.isArray(record.zones) && Array.isArray(record.roads);
+const isRecord = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object'
+  && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
+const isCanonicalCity = (city: unknown): city is CityScenario => {
+  if (!isRecord(city)) return false;
+  const idDescriptor = Object.getOwnPropertyDescriptor(city, 'id');
+  if (idDescriptor === undefined || !('value' in idDescriptor) || (idDescriptor.value !== 'mulbit' && idDescriptor.value !== 'maru')) return false;
+  const cityId = idDescriptor.value === 'mulbit' ? 'mulbit' : 'maru';
+  return sameSerializableValue(city, CITIES[cityId]);
 };
 
-const isValidMission = (mission: unknown): mission is MissionDefinition => {
-  if (mission === null || typeof mission !== 'object') return false;
-  const record = mission as Partial<MissionDefinition>;
-  return typeof record.id === 'string' && (record.cityId === 'mulbit' || record.cityId === 'maru')
-    && typeof record.title === 'string' && Array.isArray(record.facilityKinds) && Array.isArray(record.conditions);
+const isCanonicalMission = (mission: unknown): mission is MissionDefinition => {
+  if (!isRecord(mission)) return false;
+  const idDescriptor = Object.getOwnPropertyDescriptor(mission, 'id');
+  if (idDescriptor === undefined || !('value' in idDescriptor) || typeof idDescriptor.value !== 'string' || !(idDescriptor.value in MISSIONS)) return false;
+  return sameSerializableValue(mission, MISSIONS[idDescriptor.value as keyof typeof MISSIONS]);
 };
 
 const isProposalLike = (proposal: unknown): proposal is ProposalSnapshot => {
@@ -86,7 +91,7 @@ function ProposalColumn({ title, proposal, city, mission }: { title: string; pro
 export function AlternativeComparison({ city, mission, first, second, comparison }: AlternativeComparisonProps) {
   let propsValid: boolean;
   try {
-    propsValid = isValidCity(city) && isValidMission(mission) && mission.cityId === city.id
+    propsValid = isCanonicalCity(city) && isCanonicalMission(mission) && mission.cityId === city.id
       && (first === null || isProposalLike(first)) && (second === null || isProposalLike(second))
       && (comparison === null || isComparisonLike(comparison))
       && (first === null) === (second === null) && (first !== null || comparison === null);

@@ -244,7 +244,12 @@ describe('sessionReducer', () => {
     state = sessionReducer(state, { type: 'inspect-metric', metricId: 'average' });
     state = sessionReducer(state, { type: 'inspect-metric', metricId: 'maximum' });
     state = sessionReducer(state, { type: 'select-underserved-zone', zoneId: 'mulbit-north' });
-    state = sessionReducer(state, { type: 'save-proposal', proposal: proposal(state, 'B안', [{ ...libraryPlacement, candidateId: 'mulbit-b2' }]) });
+    const bInput = proposal(state, 'B안', [{ ...libraryPlacement, candidateId: 'mulbit-b2' }]);
+    expect(sessionReducer(state, { type: 'save-proposal', proposal: { ...bInput, id: 'proposal-a' } })).toBe(state);
+    expect(sessionReducer(state, { type: 'save-proposal', proposal: { ...bInput, label: 'A안' } })).toBe(state);
+    expect(sessionReducer(state, { type: 'save-proposal', proposal: { ...bInput, placements: [{ ...bInput.placements[0]!, candidateId: 'mulbit-c3' }] } })).toBe(state);
+    state = sessionReducer(state, { type: 'save-proposal', proposal: bInput });
+    expect(sessionReducer(state, { type: 'save-proposal', proposal: bInput })).toBe(state);
     state = sessionReducer(state, { type: 'go-to-stage', stage: 'analysis' });
     state = sessionReducer(state, { type: 'select-underserved-zone', zoneId: 'mulbit-north' });
     state = sessionReducer(state, { type: 'go-to-stage', stage: 'resident-view' });

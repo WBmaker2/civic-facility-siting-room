@@ -47,6 +47,28 @@ describe('proposal comparison', () => {
     });
     expect(() => compareProposals(snapshot('A안'), snapshot('A안'))).toThrow();
   });
+
+  it('reports exact newly reached and newly unreachable zone IDs for a disconnected island alternative', () => {
+    const island = [{ slotId: 'library-1', facilityKind: 'library' as const, candidateId: 'mulbit-e5-island' }];
+    const comparison = compareProposals(snapshot('A안', island), snapshot('B안', placementsA));
+    expect(comparison.newlyReachedZoneIds).toEqual(['mulbit-central', 'mulbit-east', 'mulbit-hill', 'mulbit-north', 'mulbit-south', 'mulbit-west']);
+    expect(comparison.newlyUnreachableZoneIds).toEqual([]);
+    const first = snapshot('A안', island);
+    const second = snapshot('B안', placementsA);
+    render(<AlternativeComparison city={CITIES.mulbit} mission={mission} first={first} second={second} comparison={comparison} />);
+    expect(screen.getByText(/새로 도달한 구역: 물빛 가운데 구역, 바람 동쪽 구역, 작은 언덕 구역, 햇살 북쪽 구역, 느티나무 남쪽 구역, 노을 서쪽 구역/)).toBeInTheDocument();
+    expect(screen.getByText('새로 도달하지 못하게 된 구역: 없음')).toBeInTheDocument();
+  });
+
+  it('reports exact newly unreachable IDs and names when the alternative moves onto the island', () => {
+    const island = [{ slotId: 'library-1', facilityKind: 'library' as const, candidateId: 'mulbit-e5-island' }];
+    const comparison = compareProposals(snapshot('A안', placementsA), snapshot('B안', island));
+    expect(comparison.newlyReachedZoneIds).toEqual([]);
+    expect(comparison.newlyUnreachableZoneIds).toEqual(['mulbit-central', 'mulbit-east', 'mulbit-hill', 'mulbit-north', 'mulbit-south', 'mulbit-west']);
+    render(<AlternativeComparison city={CITIES.mulbit} mission={mission} first={snapshot('A안')} second={snapshot('B안', island)} comparison={comparison} />);
+    expect(screen.getByText('새로 도달한 구역: 없음')).toBeInTheDocument();
+    expect(screen.getByText('새로 도달하지 못하게 된 구역: 물빛 가운데 구역, 바람 동쪽 구역, 작은 언덕 구역, 햇살 북쪽 구역, 느티나무 남쪽 구역, 노을 서쪽 구역')).toBeInTheDocument();
+  });
 });
 
 describe('ResidentPerspective', () => {
@@ -69,10 +91,14 @@ describe('ResidentPerspective', () => {
     render(<ResidentPerspective city={CITIES.mulbit} mission={mission} placements={placementsA} analysis={analysis} selectedZoneId={null} onSelectZone={vi.fn()} canSave={false} onSaveA={vi.fn()} onRevise={vi.fn()} />);
     const rows = screen.getAllByRole('row');
     expect(rows).toHaveLength(CITIES.mulbit.zones.length + 1);
-    expect(rows.slice(1).map((row) => row.querySelector('th')?.textContent)).toEqual([
-      '느티나무 남쪽 구역', '물빛 가운데 구역', '바람 동쪽 구역', '작은 언덕 구역', '햇살 북쪽 구역', '노을 서쪽 구역',
+    expect(rows.slice(1).map((row) => [...row.querySelectorAll('th,td')].map((cell) => cell.textContent))).toEqual([
+      ['느티나무 남쪽 구역', '3 사람 토큰', '4 이동 단위', '도달 가능', '도서관', '도서관: 기준 안', '도로 연결과 선택한 위치 때문에 이동이 더 어렵습니다', '이동 조건을 함께 살펴야 합니다'],
+      ['물빛 가운데 구역', '6 사람 토큰', '2 이동 단위', '도달 가능', '도서관', '도서관: 기준 안', '도로 연결과 선택한 위치 때문에 이동이 더 어렵습니다', '추가 이동 조건 표지 없음'],
+      ['바람 동쪽 구역', '4 사람 토큰', '3 이동 단위', '도달 가능', '도서관', '도서관: 기준 안', '도로 연결과 선택한 위치 때문에 이동이 더 어렵습니다', '추가 이동 조건 표지 없음'],
+      ['작은 언덕 구역', '2 사람 토큰', '3 이동 단위', '도달 가능', '도서관', '도서관: 기준 안', '도로 연결과 선택한 위치 때문에 이동이 더 어렵습니다', '추가 이동 조건 표지 없음'],
+      ['햇살 북쪽 구역', '5 사람 토큰', '2 이동 단위', '도달 가능', '도서관', '도서관: 기준 안', '도로 연결과 선택한 위치 때문에 이동이 더 어렵습니다', '이동 조건을 함께 살펴야 합니다'],
+      ['노을 서쪽 구역', '4 사람 토큰', '3 이동 단위', '도달 가능', '도서관', '도서관: 기준 안', '도로 연결과 선택한 위치 때문에 이동이 더 어렵습니다', '추가 이동 조건 표지 없음'],
     ]);
-    expect(rows[1]?.querySelectorAll('th,td')).toHaveLength(8);
     for (const heading of ['사람 토큰', '이동 단위', '도달 여부', '기존 혜택', '새 혜택', '불편 이유', '이동 조건']) {
       expect(screen.getByRole('columnheader', { name: heading })).toBeInTheDocument();
     }
@@ -98,6 +124,11 @@ describe('ResidentPerspective', () => {
     cleanup();
     for (const malformed of [
       { city: {} as never }, { mission: {} as never }, { first: {} as never }, { second: {} as never }, { comparison: {} as never },
+      { city: { ...CITIES.maru, candidates: [null] } as never },
+      { city: { ...CITIES.maru, zones: [null] } as never },
+      { city: { ...CITIES.maru, roads: [null] } as never },
+      { mission: { ...mission, conditions: [null] } as never },
+      { mission: { ...mission, facilityKinds: [null] } as never },
     ]) {
       expect(() => render(<AlternativeComparison city={malformed.city ?? CITIES.mulbit} mission={malformed.mission ?? mission} first={malformed.first ?? first} second={malformed.second ?? second} comparison={malformed.comparison ?? comparison} />)).not.toThrow();
       expect(screen.getByRole('alert')).toHaveTextContent('비교 자료를 표시할 수 없습니다');
@@ -106,6 +137,21 @@ describe('ResidentPerspective', () => {
     render(<AlternativeComparison city={CITIES.mulbit} mission={mission} first={first} second={second} comparison={comparison} />);
     expect(screen.getByRole('heading', { name: 'A안과 B안 비교' })).toBeInTheDocument();
     expect(screen.getAllByText(/예산 토큰 3개 안에 놓기/).length).toBeGreaterThan(0);
+    expect(screen.getByText('도서관: 느린 강변 터 (B2)')).toBeInTheDocument();
+    expect(screen.getByText('도서관: 푸른길 터 (D3)')).toBeInTheDocument();
+    const columns = [...document.querySelectorAll('.proposal-column')];
+    expect(columns.map((column) => [...column.querySelectorAll('dl > div')].map((row) => [row.querySelector('dt')?.textContent, row.querySelector('dd')?.textContent]))).toEqual([
+      [['평균 이동', '2.7 이동 단위'], ['최대 이동', '4.0 이동 단위'], ['도달 불가', '0곳'], ['위험 후보', '0곳'], ['비용', '1 토큰'], ['기존 시설 중복', '6곳']],
+      [['평균 이동', '2.8 이동 단위'], ['최대 이동', '5.0 이동 단위'], ['도달 불가', '0곳'], ['위험 후보', '0곳'], ['비용', '3 토큰'], ['기존 시설 중복', '6곳']],
+    ]);
+    expect(screen.getByText('예산 토큰 3개 안에 놓기: 충족 — 배치 비용 1토큰 / 공개 한도 3토큰입니다.')).toBeInTheDocument();
+    expect(screen.getByText('예산 토큰 3개 안에 놓기: 충족 — 배치 비용 3토큰 / 공개 한도 3토큰입니다.')).toBeInTheDocument();
+    expect(screen.getAllByText('도달 불가 구역 없이 놓기: 충족 — 도달 불가 구역 0곳 / 공개 한도 0곳입니다.')).toHaveLength(2);
+    expect(screen.getByText('가장 먼 구역 이동 단위 7 이하: 충족 — 가장 긴 이동 단위 4 / 공개 한도 7입니다.')).toBeInTheDocument();
+    expect(screen.getByText('가장 먼 구역 이동 단위 7 이하: 충족 — 가장 긴 이동 단위 5 / 공개 한도 7입니다.')).toBeInTheDocument();
+    expect(screen.getAllByText('위험 표지가 없는 터 선택하기: 충족 — 위험 표지가 있는 선택 터 0곳 / 공개 한도 0곳입니다.')).toHaveLength(2);
+    expect(screen.getByText('비용 우선 기준은 2토큰 이하: 충족 — 비용 1토큰 / 우선 기준 공개 한도 2토큰입니다.')).toBeInTheDocument();
+    expect(screen.getByText('비용 우선 기준은 2토큰 이하: 미충족 — 비용 3토큰 / 우선 기준 공개 한도 2토큰입니다.')).toBeInTheDocument();
     expect(screen.getByText(/평균 이동 변화: \+0\.1 이동 단위/)).toBeInTheDocument();
     expect(screen.getByText(/최대 이동 변화: \+1 이동 단위/)).toBeInTheDocument();
     expect(screen.getByText(/위험 후보 변화: 0곳/)).toBeInTheDocument();
