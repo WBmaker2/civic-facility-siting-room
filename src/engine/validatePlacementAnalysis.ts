@@ -11,12 +11,12 @@ const isStandardDenseArray = (value: object): value is unknown[] => {
   if (Object.getPrototypeOf(value) !== Array.prototype) return false;
   const array = value as unknown[];
   const lengthDescriptor = Object.getOwnPropertyDescriptor(array, 'length');
-  if (lengthDescriptor === undefined || !('value' in lengthDescriptor) || !Number.isSafeInteger(lengthDescriptor.value)) return false;
+  if (lengthDescriptor === undefined || !('value' in lengthDescriptor) || lengthDescriptor.enumerable !== false || !Number.isSafeInteger(lengthDescriptor.value)) return false;
   const ownKeys = Reflect.ownKeys(array);
   if (ownKeys.length !== lengthDescriptor.value + 1) return false;
   for (let index = 0; index < lengthDescriptor.value; index += 1) {
     const descriptor = Object.getOwnPropertyDescriptor(array, String(index));
-    if (descriptor === undefined || !('value' in descriptor)) return false;
+    if (descriptor === undefined || !('value' in descriptor) || descriptor.enumerable !== true) return false;
   }
   return ownKeys.every((key) => key === 'length' || (typeof key === 'string' && /^\d+$/.test(key) && Number(key) < lengthDescriptor.value));
 };
@@ -55,7 +55,10 @@ export const sameSerializableValue = (left: unknown, right: unknown): boolean =>
         if (key !== keysB[index]) return false;
         const descriptorA = Object.getOwnPropertyDescriptor(recordA, key);
         const descriptorB = Object.getOwnPropertyDescriptor(recordB, key);
-        return descriptorA !== undefined && descriptorB !== undefined && 'value' in descriptorA && 'value' in descriptorB && compare(descriptorA.value, descriptorB.value);
+        return descriptorA !== undefined && descriptorB !== undefined
+          && 'value' in descriptorA && 'value' in descriptorB
+          && descriptorA.enumerable === true && descriptorB.enumerable === true
+          && compare(descriptorA.value, descriptorB.value);
       });
     } finally {
       leftPath.delete(a); rightPath.delete(b);

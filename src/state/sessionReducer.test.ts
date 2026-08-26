@@ -159,6 +159,18 @@ describe('sessionReducer', () => {
     expect(state.evidence.reviewedLayerIds).toEqual(['population', 'roads']);
   });
 
+  it('records each inspected metric once and preserves state identity for duplicate evidence', () => {
+    let state = createInitialSession();
+    for (const metricId of ['average', 'maximum', 'unreachable', 'risk', 'cost'] as const) {
+      const inspected = sessionReducer(state, { type: 'inspect-metric', metricId });
+      expect(inspected.evidence.inspectedMetricIds).toContain(metricId);
+      state = inspected;
+      const duplicate = sessionReducer(state, { type: 'inspect-metric', metricId });
+      expect(duplicate).toBe(state);
+      expect(duplicate.evidence.inspectedMetricIds.filter((item) => item === metricId)).toHaveLength(1);
+    }
+  });
+
   it('replaces a slot immutably and invalidates analysis details while retaining prior snapshots', () => {
     let state = atDataRoom();
     state = sessionReducer(state, { type: 'place-facility', placement: libraryPlacement });
@@ -401,6 +413,18 @@ describe('sessionReducer', () => {
     for (const [index, analysis] of attempts.entries()) expect(sessionReducer(state, { type: 'store-analysis', analysis }), `attempt ${index}`).toBe(state);
     const frozen = { ...valid, placements: Object.freeze([...valid.placements]), nearestFacilityAccess: { ...valid.nearestFacilityAccess, zoneTravel: Object.freeze([...valid.nearestFacilityAccess.zoneTravel]) } } as unknown as PlacementAnalysis;
     expect(sessionReducer(state, { type: 'store-analysis', analysis: frozen })).not.toBe(state);
+
+    const nonEnumerableTopLevel = { ...valid };
+    Object.defineProperty(nonEnumerableTopLevel, 'totalCostTokens', { value: valid.totalCostTokens, enumerable: false });
+    const nonEnumerableNested = { ...valid, nearestFacilityAccess: { ...valid.nearestFacilityAccess } };
+    Object.defineProperty(nonEnumerableNested.nearestFacilityAccess, 'populationWeightedAverage', { value: valid.nearestFacilityAccess.populationWeightedAverage, enumerable: false });
+    const nonEnumerablePlacement = { ...valid, placements: [{ ...libraryPlacement }] };
+    Object.defineProperty(nonEnumerablePlacement.placements[0]!, 'candidateId', { value: libraryPlacement.candidateId, enumerable: false });
+    const nonEnumerableIndex = { ...valid, nearestFacilityAccess: { ...valid.nearestFacilityAccess, zoneTravel: [...valid.nearestFacilityAccess.zoneTravel] } };
+    Object.defineProperty(nonEnumerableIndex.nearestFacilityAccess.zoneTravel, '0', { value: valid.nearestFacilityAccess.zoneTravel[0], enumerable: false });
+    for (const malformed of [nonEnumerableTopLevel, nonEnumerableNested, nonEnumerablePlacement, nonEnumerableIndex]) {
+      expect(sessionReducer(state, { type: 'store-analysis', analysis: malformed as PlacementAnalysis })).toBe(state);
+    }
   });
 
 });

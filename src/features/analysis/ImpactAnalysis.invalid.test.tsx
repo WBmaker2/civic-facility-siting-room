@@ -46,6 +46,24 @@ describe('ImpactAnalysis invalid input boundaries', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('현재 배치와 일치하는 새 분석이 아닙니다');
   });
 
+  it('hides fake values when analysis descriptors are non-enumerable', () => {
+    const topLevel = { ...valid };
+    Object.defineProperty(topLevel, 'totalCostTokens', { value: valid.totalCostTokens, enumerable: false });
+    const nestedMetrics = { ...valid, nearestFacilityAccess: { ...valid.nearestFacilityAccess } };
+    Object.defineProperty(nestedMetrics.nearestFacilityAccess, 'populationWeightedAverage', { value: valid.nearestFacilityAccess.populationWeightedAverage, enumerable: false });
+    const placementField = { ...valid, placements: [{ ...placement }] };
+    Object.defineProperty(placementField.placements[0]!, 'candidateId', { value: placement.candidateId, enumerable: false });
+    const arrayIndex = { ...valid, nearestFacilityAccess: { ...valid.nearestFacilityAccess, zoneTravel: [...valid.nearestFacilityAccess.zoneTravel] } };
+    Object.defineProperty(arrayIndex.nearestFacilityAccess.zoneTravel, '0', { value: valid.nearestFacilityAccess.zoneTravel[0], enumerable: false });
+    const { rerender } = render(<ImpactAnalysis {...props} analysis={null} />);
+    for (const malformed of [topLevel, nestedMetrics, placementField, arrayIndex]) {
+      rerender(<ImpactAnalysis {...props} analysis={malformed} />);
+      expect(screen.getByRole('alert')).toHaveTextContent('현재 배치와 일치하는 새 분석이 아닙니다');
+      expect(screen.queryByText(/평균 이동 단위:/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/999|-Infinity/)).not.toBeInTheDocument();
+    }
+  });
+
   it('fails closed for a wrong mission context without rendering a coordinate or fake result', () => {
     const wrongMission = { ...tinyMission, cityId: 'maru' as const };
     render(<ImpactAnalysis {...props} mission={wrongMission} analysis={valid} />);

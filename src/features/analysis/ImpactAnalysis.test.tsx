@@ -95,6 +95,35 @@ describe('ImpactAnalysis', () => {
     expect(screen.getByRole('definition', { name: '예산' })).toHaveTextContent('3 / 3 토큰');
   });
 
+  it('routes each evidence card focus and click to its exact metric once per gesture', () => {
+    const riskyPlacement = { ...placement, candidateId: 'candidate-risk' };
+    const analysis = analyzePlacement(tinyCity, tinyMission, [riskyPlacement]);
+    const onInspectMetric = vi.fn();
+    render(<ImpactAnalysis city={tinyCity} mission={tinyMission} placements={[riskyPlacement]} analysis={analysis} onAnalysis={vi.fn()} onInspectMetric={onInspectMetric} />);
+    const overall = screen.getByRole('heading', { name: '전체 주민 접근' }).closest('section');
+    const risk = screen.getByRole('heading', { name: '위험' }).closest('section');
+    const cost = screen.getByRole('heading', { name: '비용' }).closest('section');
+    const cards = [
+      [within(overall!).getByRole('button', { name: '평균 이동 단위: 1.3 가상 단위' }), 'average'],
+      [within(overall!).getByRole('button', { name: '가장 긴 이동 단위: 5 가상 단위' }), 'maximum'],
+      [within(overall!).getByRole('button', { name: '도달 불가: 0개 구역' }), 'unreachable'],
+      [within(risk!).getByRole('button', { name: '위험: 1곳' }), 'risk'],
+      [within(cost!).getByRole('button', { name: '비용: 3 / 3 토큰' }), 'cost'],
+    ] as const;
+    for (const [button, metricId] of cards) {
+      fireEvent.focus(button);
+      expect(onInspectMetric).toHaveBeenLastCalledWith(metricId);
+      fireEvent.click(button);
+      expect(onInspectMetric).toHaveBeenLastCalledWith(metricId);
+    }
+    expect(onInspectMetric).toHaveBeenCalledTimes(10);
+    expect(onInspectMetric.mock.calls.map(([metricId]) => metricId)).toEqual([
+      'average', 'average', 'maximum', 'maximum', 'unreachable', 'unreachable', 'risk', 'risk', 'cost', 'cost',
+    ]);
+    const ids = [...document.querySelectorAll('[id^="metric-detail-"]')].map((node) => node.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
   it('renders selection and results tabs with coordinates on narrow layouts', () => {
     Object.defineProperty(window, 'matchMedia', { configurable: true, value: (query: string) => ({ matches: query.includes('max-width: 600px'), media: query, onchange: null, addEventListener: vi.fn(), removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn(), dispatchEvent: vi.fn() }) });
     render(<ImpactAnalysis city={tinyCity} mission={tinyMission} placements={[placement]} analysis={analysisFor()} onAnalysis={vi.fn()} onInspectMetric={vi.fn()} />);

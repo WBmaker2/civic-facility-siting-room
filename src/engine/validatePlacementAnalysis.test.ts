@@ -55,4 +55,21 @@ describe('validatePlacementAnalysis', () => {
     Object.defineProperty(extra, 'extra', { value: true });
     expect(validatePlacementAnalysis(CITIES.mulbit, MISSIONS['bookmaru-library'], [placement], extra)).toBe(false);
   });
+
+  it('requires every JSON-like record field and array index to be enumerable data', () => {
+    const analysis = analyzePlacement(CITIES.mulbit, MISSIONS['bookmaru-library'], [placement]);
+    const topLevel = { ...analysis };
+    Object.defineProperty(topLevel, 'totalCostTokens', { value: analysis.totalCostTokens, enumerable: false });
+    const nestedMetrics = { ...analysis, nearestFacilityAccess: { ...analysis.nearestFacilityAccess } };
+    Object.defineProperty(nestedMetrics.nearestFacilityAccess, 'populationWeightedAverage', { value: analysis.nearestFacilityAccess.populationWeightedAverage, enumerable: false });
+    const placementField = { ...analysis, placements: [{ ...placement }] };
+    Object.defineProperty(placementField.placements[0]!, 'candidateId', { value: placement.candidateId, enumerable: false });
+    const arrayIndex = { ...analysis, nearestFacilityAccess: { ...analysis.nearestFacilityAccess, zoneTravel: [...analysis.nearestFacilityAccess.zoneTravel] } };
+    Object.defineProperty(arrayIndex.nearestFacilityAccess.zoneTravel, '0', { value: analysis.nearestFacilityAccess.zoneTravel[0], enumerable: false });
+    for (const [label, malformed] of [['top', topLevel], ['nested', nestedMetrics], ['placement', placementField], ['index', arrayIndex]] as const) {
+      expect(validatePlacementAnalysis(CITIES.mulbit, MISSIONS['bookmaru-library'], [placement], malformed), label).toBe(false);
+    }
+    const frozen = Object.freeze({ ...analysis, placements: Object.freeze([...analysis.placements]) });
+    expect(validatePlacementAnalysis(CITIES.mulbit, MISSIONS['bookmaru-library'], [placement], frozen)).toBe(true);
+  });
 });
