@@ -332,6 +332,26 @@ describe('sessionReducer', () => {
     expect(sessionReducer(state, { type: 'place-facility', placement: accessor as FacilityPlacement })).toBe(state);
   });
 
+  it('fails closed for malformed opinion drafts and stores valid drafts detached', () => {
+    const state = atDataRoom();
+    const base = state.opinion;
+    const attempts: unknown[] = [];
+    const accessor = [] as unknown[];
+    Object.defineProperty(accessor, '0', { enumerable: true, configurable: true, get: () => 'average' });
+    attempts.push({ ...base, evidenceMetricIds: accessor });
+    const sparse = ['average', 'maximum']; delete sparse[1];
+    attempts.push({ ...base, evidenceMetricIds: sparse });
+    attempts.push({ ...base, evidenceMetricIds: Object.assign(['average'], { extra: true }) });
+    attempts.push({ ...base, priorityId: 'unknown' });
+    attempts.push({ ...base, selectedProposalId: 'proposal-a' });
+    attempts.push({ ...base, underservedZoneId: 'unknown-zone' });
+    for (const opinion of attempts) expect(sessionReducer(state, { type: 'set-opinion', opinion: opinion as never })).toBe(state);
+    const changed = sessionReducer(state, { type: 'set-opinion', opinion: { ...base, rationale: '현재 탭에만 남는 근거 기록입니다.' } });
+    expect(changed).not.toBe(state);
+    expect(changed.opinion).not.toBe(base);
+    expect(changed.opinion.evidenceMetricIds).not.toBe(base.evidenceMetricIds);
+  });
+
   it('accepts only an own-key candidate from the assigned city and preserves identity otherwise', () => {
     let state = atPlacement();
     state = sessionReducer(state, { type: 'place-facility', placement: libraryPlacement });

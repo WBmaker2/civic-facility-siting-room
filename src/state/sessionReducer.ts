@@ -6,6 +6,7 @@ import { assessProposal } from '../engine/assessProposal';
 import { createProposalSnapshot } from '../engine/proposalComparison';
 import { validatePlacements } from '../domain/placementRules';
 import { STAGE_ORDER, type SessionAction } from './sessionTypes';
+import { isStrictDenseArray, validateOpinion } from '../features/opinion/validateOpinion';
 
 const DATA_LAYERS: readonly DataLayerId[] = ['population', 'roads', 'risk', 'cost', 'existing-facilities'];
 const PRIORITIES: readonly PriorityId[] = ['access-equity', 'safety', 'cost'];
@@ -80,9 +81,52 @@ const hasAlternative = (state: SessionState): boolean => state.proposals.length 
   && state.evidence.comparedProposalIds[0] === 'proposal-a'
   && state.evidence.comparedProposalIds[1] === 'proposal-b';
 
-export const selectOpinionReady = (state: SessionState): false => {
-  void state;
-  return false;
+const opinionKeys = ['priorityId', 'selectedProposalId', 'evidenceMetricIds', 'underservedZoneId', 'rationale', 'counterargument', 'mitigation'] as const;
+const opinionMetrics = ['average', 'maximum', 'unreachable', 'risk', 'cost'] as const;
+const isPlainRecord = (value: unknown): value is Record<string, unknown> => {
+  try { return value !== null && typeof value === 'object' && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null); } catch { return false; }
+};
+const readData = (value: object, key: string): unknown => {
+  const descriptor = Object.getOwnPropertyDescriptor(value, key);
+  return descriptor !== undefined && 'value' in descriptor ? descriptor.value : undefined;
+};
+const hasOnlyOpinionKeys = (value: object): boolean => {
+  try { const keys = Reflect.ownKeys(value); return keys.length === opinionKeys.length && keys.every((key) => typeof key === 'string' && opinionKeys.includes(key as typeof opinionKeys[number])); } catch { return false; }
+};
+const sameOpinion = (left: OpinionDraft, right: OpinionDraft): boolean => left.priorityId === right.priorityId
+  && left.selectedProposalId === right.selectedProposalId && left.underservedZoneId === right.underservedZoneId
+  && left.rationale === right.rationale && left.counterargument === right.counterargument && left.mitigation === right.mitigation
+  && left.evidenceMetricIds.length === right.evidenceMetricIds.length && left.evidenceMetricIds.every((metric, index) => metric === right.evidenceMetricIds[index]);
+const cloneOpinionForState = (state: SessionState, input: unknown): OpinionDraft | null => {
+  try {
+    if (!isPlainRecord(input) || !hasOnlyOpinionKeys(input)) return null;
+    const priority = readData(input, 'priorityId');
+    const selectedProposalId = readData(input, 'selectedProposalId');
+    const metrics = readData(input, 'evidenceMetricIds');
+    const underservedZoneId = readData(input, 'underservedZoneId');
+    const rationale = readData(input, 'rationale');
+    const counterargument = readData(input, 'counterargument');
+    const mitigation = readData(input, 'mitigation');
+    if ((priority !== null && !PRIORITIES.includes(priority as PriorityId)) || (state.priorityId !== null && priority !== null && priority !== state.priorityId)
+      || (selectedProposalId !== null && typeof selectedProposalId !== 'string') || (underservedZoneId !== null && typeof underservedZoneId !== 'string')
+      || typeof rationale !== 'string' || rationale.length > 300 || typeof counterargument !== 'string' || counterargument.length > 300
+      || typeof mitigation !== 'string' || mitigation.length > 300 || !isStrictDenseArray(metrics) || new Set(metrics).size !== metrics.length
+      || metrics.some((metric) => typeof metric !== 'string' || !opinionMetrics.includes(metric as typeof opinionMetrics[number]))) return null;
+    const selected = selectedProposalId === null ? null : state.proposals.find((proposal) => proposal.id === selectedProposalId);
+    if (selectedProposalId !== null && selected === undefined) return null;
+    if (underservedZoneId !== null) {
+      if (selected === null || selected === undefined) return null;
+      const rows = selected.analysis.nearestFacilityAccess.zoneTravel;
+      if (!rows.some((row) => row.zoneId === underservedZoneId)) return null;
+    }
+    return { priorityId: priority as PriorityId | null, selectedProposalId: selectedProposalId as string | null, evidenceMetricIds: [...metrics] as OpinionDraft['evidenceMetricIds'], underservedZoneId: underservedZoneId as string | null, rationale, counterargument, mitigation };
+  } catch { return null; }
+};
+export const selectOpinionReady = (state: SessionState): boolean => {
+  try {
+    return state.priorityId !== null && state.opinion.priorityId === state.priorityId
+      && hasAlternative(state) && validateOpinion(state.opinion, state.proposals).complete;
+  } catch { return false; }
 };
 export const selectStageGate = (state: SessionState, stage: StageId): boolean => {
   switch (stage) {
@@ -99,7 +143,7 @@ export const selectStageGate = (state: SessionState, stage: StageId): boolean =>
     default: return false;
   }
 };
-export const selectSessionSelectors = (state: SessionState) => ({ canAdvance: selectStageGate(state, state.stage), opinionReady: selectOpinionReady(state) as false });
+export const selectSessionSelectors = (state: SessionState) => ({ canAdvance: selectStageGate(state, state.stage), opinionReady: selectOpinionReady(state) });
 export const selectCanAdvance = (state: SessionState): boolean => selectStageGate(state, state.stage);
 
 const resetAfterPlacementChange = (state: SessionState): SessionState => ({ ...state, stage: indexOfStage(state.stage) > indexOfStage('placement') ? 'placement' : state.stage, analysis: null, evidence: { ...copyEvidence(state.evidence), inspectedMetricIds: [], selectedUnderservedZoneIds: [], comparedProposalIds: [] } });
@@ -189,7 +233,11 @@ export function sessionReducer(state: SessionState, action: SessionAction): Sess
         return state;
       }
     }
-    case 'set-opinion': return { ...state, opinion: { ...action.opinion, evidenceMetricIds: [...action.opinion.evidenceMetricIds] } };
+    case 'set-opinion': {
+      const opinion = cloneOpinionForState(state, action.opinion);
+      if (opinion === null || sameOpinion(opinion, state.opinion)) return state;
+      return { ...state, opinion };
+    }
     case 'go-to-stage': {
       const current = indexOfStage(state.stage); const target = indexOfStage(action.stage); if (target < 0 || target === current) return state;
       if (target < current) return { ...state, stage: action.stage }; if (target !== current + 1 || !selectStageGate(state, state.stage)) return state; return { ...state, stage: action.stage };

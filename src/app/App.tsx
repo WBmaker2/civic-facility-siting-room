@@ -11,6 +11,9 @@ import { AlternativeComparison } from '../features/perspective/AlternativeCompar
 import { compareProposals, createProposalSnapshot } from '../engine/proposalComparison';
 import { assessProposal } from '../engine/assessProposal';
 import { cityForId, missionForId } from '../state/sessionReducer';
+import { selectOpinionReady, selectStageGate } from '../state/sessionReducer';
+import { SitingOpinionForm } from '../features/opinion/SitingOpinionForm';
+import { OpinionSummary } from '../features/opinion/OpinionSummary';
 
 function StagePlaceholder() {
   const { state } = useSession();
@@ -80,13 +83,40 @@ function SessionShell() {
                   />
                   <AlternativeComparison city={city} mission={mission} first={state.proposals[0] ?? null} second={state.proposals[1] ?? null} comparison={comparison} />
                 </>
-                : <StagePlaceholder />;
+                : state.stage === 'opinion' && city !== undefined && mission !== undefined
+                  ? <>
+                    <SitingOpinionForm
+                      draft={state.opinion}
+                      proposals={state.proposals}
+                      intakePriorityId={state.priorityId}
+                      city={city}
+                      onChange={(opinion) => dispatch({ type: 'set-opinion', opinion })}
+                    />
+                    {selectOpinionReady(state) && <OpinionSummary
+                      draft={state.opinion}
+                      proposals={state.proposals}
+                      priorityId={state.priorityId}
+                      mission={mission}
+                      city={city}
+                      onRestart={() => dispatch({ type: 'restart-mission' })}
+                    />}
+                  </>
+                  : <StagePlaceholder />;
+  const opinionAction = state.proposals.length === 2 && state.stage === 'resident-view';
   return (
     <main>
       <h1>도시 기능 입지 심의실</h1>
       <p role="note">{MODEL_LIMIT_NOTICE}</p>
       <ProgressStepper currentStage={state.stage} />
       {stage}
+      {opinionAction && <button type="button" disabled={!selectStageGate(state, 'resident-view')} onClick={() => dispatch({ type: 'go-to-stage', stage: 'opinion' })}>의견서 작성</button>}
+      <details className="update-history">
+        <summary>업데이트 내역</summary>
+        <div>
+          <p>2026-08-26 설계: 가상 도시와 자료 비교 활동을 설계했습니다.</p>
+          <p>2026-08-26 개발: 근거·반론·보완을 담는 입지 의견서 화면을 추가했습니다.</p>
+        </div>
+      </details>
     </main>
   );
 }

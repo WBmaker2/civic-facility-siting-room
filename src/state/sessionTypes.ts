@@ -63,5 +63,5 @@ export type SessionDispatch = Dispatch<SessionAction>;
 
 export interface SessionSelectors {
   readonly canAdvance: boolean;
-  readonly opinionReady: false;
+  readonly opinionReady: boolean;
 }
