@@ -2,6 +2,8 @@ import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import { App } from '../../app/App';
+import { CITIES } from '../../domain/cities';
+import { MISSIONS } from '../../domain/missions';
 
 describe('ReviewIntake', () => {
   afterEach(() => cleanup());
@@ -33,5 +35,44 @@ describe('ReviewIntake', () => {
     expect(screen.getByText(/공유 예산/)).toBeInTheDocument();
     expect(screen.getByText(/역할을 나누어 맡습니다/)).toBeInTheDocument();
     expect(screen.getByText(/우선 설치.*나중 설치/)).toBeInTheDocument();
+  });
+
+  it('shows each mission card with its assigned city, purpose, budget, and every public condition', () => {
+    render(<App />);
+    const purposes: Record<keyof typeof MISSIONS, string> = {
+      'bookmaru-library': '책과 배움 자료를 이용하는 작은 도서관입니다.',
+      'health-help-center': '일상 건강 상담 시설이며 응급 출동 시간을 예측하지 않습니다.',
+      'living-culture-center': '주민이 함께 배우고 활동하는 생활 문화센터입니다.',
+      'combined-review': '도서관과 일상 건강 상담 시설을 함께 검토하는 복합 심의입니다.',
+    };
+
+    for (const mission of Object.values(MISSIONS)) {
+      const card = screen.getByRole('article', { name: mission.title });
+      expect(card).toHaveTextContent(CITIES[mission.cityId].name);
+      expect(card).toHaveTextContent(`${mission.budgetTokens}토큰`);
+      expect(card).toHaveTextContent(purposes[mission.id]);
+      for (const condition of mission.conditions) expect(card).toHaveTextContent(condition.label);
+    }
+  });
+
+  it('uses exact priority names, updates checked state, and resets priority on mission reselection', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.selectOptions(screen.getByRole('combobox', { name: '미션 선택' }), 'bookmaru-library');
+    const access = screen.getByRole('radio', { name: '접근성' });
+    const safety = screen.getByRole('radio', { name: '안전' });
+    const cost = screen.getByRole('radio', { name: '비용' });
+    expect(access).toBeInTheDocument();
+    expect(safety).toBeInTheDocument();
+    expect(cost).toBeInTheDocument();
+
+    await user.click(access);
+    expect(access).toBeChecked();
+    expect(safety).not.toBeChecked();
+    expect(cost).not.toBeChecked();
+    await user.selectOptions(screen.getByRole('combobox', { name: '미션 선택' }), 'living-culture-center');
+    expect(access).not.toBeChecked();
+    expect(safety).not.toBeChecked();
+    expect(cost).not.toBeChecked();
   });
 });

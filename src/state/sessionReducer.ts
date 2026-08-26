@@ -1,10 +1,11 @@
 import { CITIES } from '../domain/cities';
 import { MISSIONS } from '../domain/missions';
-import type { AccessMetrics, DataLayerId, FacilityPlacement, LearningEvidence, OpinionDraft, PlacementAnalysis, ProposalSnapshot, SessionState, StageId } from '../domain/types';
+import type { AccessMetrics, DataLayerId, FacilityPlacement, LearningEvidence, OpinionDraft, PlacementAnalysis, PriorityId, ProposalSnapshot, SessionState, StageId } from '../domain/types';
 import { analyzePlacement } from '../engine/analyzePlacement';
 import { STAGE_ORDER, type SessionAction } from './sessionTypes';
 
 const DATA_LAYERS: readonly DataLayerId[] = ['population', 'roads', 'risk', 'cost', 'existing-facilities'];
+const PRIORITIES: readonly PriorityId[] = ['access-equity', 'safety', 'cost'];
 const METRICS: readonly LearningEvidence['inspectedMetricIds'][number][] = ['average', 'maximum', 'unreachable', 'risk', 'cost'];
 
 const createInitialEvidence = (): LearningEvidence => ({ reviewedLayerIds: [], inspectedMetricIds: [], selectedUnderservedZoneIds: [], comparedProposalIds: [] });
@@ -57,6 +58,12 @@ const indexOfStage = (stage: StageId): number => STAGE_ORDER.indexOf(stage);
 const isLayer = (layerId: DataLayerId): boolean => DATA_LAYERS.includes(layerId);
 const isMetric = (metricId: LearningEvidence['inspectedMetricIds'][number]): boolean => METRICS.includes(metricId);
 const missionForState = (state: SessionState) => state.missionId === null ? undefined : MISSIONS[state.missionId];
+export const hasValidIntakeContext = (state: SessionState): boolean => {
+  if (state.cityId === null || state.missionId === null || state.priorityId === null) return false;
+  const mission = MISSIONS[state.missionId];
+  const city = CITIES[state.cityId];
+  return mission !== undefined && city !== undefined && PRIORITIES.includes(state.priorityId) && mission.cityId === city.id;
+};
 const UNSAFE_SLOT_IDS = new Set(['__proto__', 'constructor', 'prototype']);
 
 const allowedSlotIds = (facilityKinds: readonly string[]): Set<string> => {
@@ -174,8 +181,8 @@ export const selectOpinionReady = (state: SessionState): false => {
 };
 export const selectStageGate = (state: SessionState, stage: StageId): boolean => {
   switch (stage) {
-    case 'intake': return state.cityId !== null && state.missionId !== null && state.priorityId !== null && missionForState(state)?.cityId === state.cityId;
-    case 'data-room': return new Set(state.evidence.reviewedLayerIds).size >= 2;
+    case 'intake': return hasValidIntakeContext(state);
+    case 'data-room': return hasValidIntakeContext(state) && new Set(state.evidence.reviewedLayerIds).size >= 2;
     case 'placement': return isPlacementComplete(state);
     case 'analysis': return isFreshAnalysis(state, state.analysis);
     case 'resident-view': return isFreshAnalysis(state, state.analysis) && state.evidence.selectedUnderservedZoneIds.length > 0 && hasAlternative(state);

@@ -117,6 +117,23 @@ describe('sessionReducer', () => {
     expect(sessionReducer(back, { type: 'go-to-stage', stage: 'placement' })).toBe(back);
   });
 
+  it('rejects a mission-less data-room from advancing even when two layers were reviewed', () => {
+    const invalidDataRoom: SessionState = {
+      ...createInitialSession(),
+      stage: 'data-room',
+      activeLayerIds: ['population', 'roads'],
+      evidence: {
+        reviewedLayerIds: ['population', 'roads'],
+        inspectedMetricIds: [],
+        selectedUnderservedZoneIds: [],
+        comparedProposalIds: [],
+      },
+    };
+
+    expect(sessionReducer(invalidDataRoom, { type: 'go-to-stage', stage: 'placement' })).toBe(invalidDataRoom);
+    expect(selectCanAdvance(invalidDataRoom)).toBe(false);
+  });
+
   it('toggles active layers but accumulates unique reviewed layers', () => {
     let state = createInitialSession();
     state = sessionReducer(state, { type: 'toggle-layer', layerId: 'population' });

@@ -2,6 +2,8 @@ import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import { App } from '../../app/App';
+import { CityDataRoom } from './CityDataRoom';
+import { SessionProvider } from '../../state/SessionProvider';
 
 async function renderSessionAtDataRoom() {
   const user = userEvent.setup();
@@ -42,6 +44,29 @@ describe('CityDataRoom', () => {
     expect(screen.getByText(/연결선/)).toBeInTheDocument();
   });
 
+  it('exposes all five exact checkbox names and retains reviewed evidence after every toggle', async () => {
+    const user = await renderSessionAtDataRoom();
+    const labels = ['인구', '도로·이동 단위', '가상 위험 표지', '후보지 비용', '기존 시설'];
+    const checkboxes = labels.map((label) => screen.getByRole('checkbox', { name: label }));
+    checkboxes.forEach((checkbox) => expect(checkbox).not.toBeChecked());
+
+    for (const checkbox of checkboxes) {
+      await user.click(checkbox);
+      expect(checkbox).toBeChecked();
+    }
+    expect(screen.getByRole('status')).toHaveTextContent('5개 중 5개 확인');
+    expect(screen.getByRole('button', { name: '자료층 확인' })).toBeEnabled();
+    expect(document.querySelectorAll('[data-layer-id]')).toHaveLength(5);
+
+    for (const checkbox of checkboxes) {
+      await user.click(checkbox);
+      expect(checkbox).not.toBeChecked();
+    }
+    expect(screen.getByRole('status')).toHaveTextContent('5개 중 5개 확인');
+    expect(screen.getByRole('button', { name: '자료층 확인' })).toBeEnabled();
+    expect(document.querySelectorAll('[data-layer-id]')).toHaveLength(0);
+  });
+
   it('moves the actual stage region after confirming two layers', async () => {
     const user = await renderSessionAtDataRoom();
     await user.click(screen.getByRole('checkbox', { name: /인구/ }));
@@ -50,5 +75,19 @@ describe('CityDataRoom', () => {
 
     expect(screen.getByRole('region', { name: '후보 배치판' })).toHaveAttribute('data-stage-id', 'placement');
     expect(screen.queryByRole('region', { name: '도시 자료실' })).not.toBeInTheDocument();
+  });
+
+  it('fails closed when rendered in the initial SessionProvider without intake context', async () => {
+    const user = userEvent.setup();
+    render(<SessionProvider><CityDataRoom /></SessionProvider>);
+
+    const confirm = screen.getByRole('button', { name: '자료층 확인' });
+    expect(confirm).toBeDisabled();
+    expect(screen.getByRole('alert')).toHaveTextContent(/미션.*배정 도시.*우선순위/);
+    expect(screen.getByRole('button', { name: '심의 접수로 돌아가기' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('checkbox', { name: '인구' }));
+    await user.click(screen.getByRole('checkbox', { name: '도로·이동 단위' }));
+    expect(confirm).toBeDisabled();
   });
 });

@@ -1,6 +1,7 @@
 import { CITIES } from '../../domain/cities';
 import type { DataLayerId } from '../../domain/types';
 import { PRIVACY_NOTICE } from '../../content/learnerCopy';
+import { hasValidIntakeContext } from '../../state/sessionReducer';
 import { useSession } from '../../state/SessionProvider';
 import { LayerLegend } from './LayerLegend';
 
@@ -16,7 +17,8 @@ export function CityDataRoom() {
   const { state, dispatch } = useSession();
   const city = state.cityId === null ? undefined : CITIES[state.cityId];
   const reviewedCount = new Set(state.evidence.reviewedLayerIds).size;
-  const canConfirm = reviewedCount >= 2;
+  const validReviewContext = hasValidIntakeContext(state);
+  const canConfirm = validReviewContext && reviewedCount >= 2;
 
   return (
     <section aria-labelledby="stage-heading" data-stage-id="data-room" role="region">
@@ -47,7 +49,13 @@ export function CityDataRoom() {
       <button type="button" disabled={!canConfirm} onClick={() => dispatch({ type: 'go-to-stage', stage: 'placement' })}>
         자료층 확인
       </button>
-      {!canConfirm && <p>서로 다른 자료층을 두 개 이상 켠 뒤 확인해 주세요.</p>}
+      {!validReviewContext && (
+        <div role="alert">
+          <p>미션·배정 도시·우선순위가 확인되지 않아 자료층을 확정할 수 없습니다. 심의 접수에서 다시 선택해 주세요.</p>
+          <button type="button" onClick={() => dispatch({ type: 'go-to-stage', stage: 'intake' })}>심의 접수로 돌아가기</button>
+        </div>
+      )}
+      {validReviewContext && !canConfirm && <p>서로 다른 자료층을 두 개 이상 켠 뒤 확인해 주세요.</p>}
       <p>{PRIVACY_NOTICE}</p>
     </section>
   );
