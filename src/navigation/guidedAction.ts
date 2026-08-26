@@ -110,7 +110,7 @@ const sanitizeState = (input: SessionState): SessionState | null => {
     if (state.cityId !== null && state.missionId !== null && missionForId(state.missionId)?.cityId !== state.cityId) return null;
     if (!hasExactKeys(state.evidence, EVIDENCE_KEYS)
       || !isKnownStringArray(state.activeLayerIds, DATA_LAYERS)
-      || !isKnownStringArray(state.evidence.reviewedLayerIds, DATA_LAYERS, false)
+      || !isKnownStringArray(state.evidence.reviewedLayerIds, DATA_LAYERS)
       || !isKnownStringArray(state.evidence.inspectedMetricIds, METRICS)
       || !isKnownStringArray(state.evidence.selectedUnderservedZoneIds, state.cityId === null ? [] : (cityForId(state.cityId)?.zones.map((zone) => zone.id) ?? []))
       || !isKnownStringArray(state.evidence.comparedProposalIds, PROPOSAL_IDS)) return null;
