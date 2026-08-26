@@ -14,6 +14,8 @@ export interface ImpactAnalysisProps {
   analysis: PlacementAnalysis | null;
   onAnalysis: (analysis: PlacementAnalysis) => void;
   onInspectMetric: (metricId: LearningEvidence['inspectedMetricIds'][number]) => void;
+  onOpenResident?: () => void;
+  canOpenResident?: boolean;
 }
 
 type TabId = 'selection' | 'results';
@@ -168,7 +170,7 @@ function useNarrowLayout() {
   return isNarrow;
 }
 
-export function ImpactAnalysis({ city, mission, placements, analysis, onAnalysis, onInspectMetric }: ImpactAnalysisProps) {
+export function ImpactAnalysis({ city, mission, placements, analysis, onAnalysis, onInspectMetric, onOpenResident = () => undefined, canOpenResident = false }: ImpactAnalysisProps) {
   const [activeTab, setActiveTab] = useState<TabId>('results');
   const [announcement, setAnnouncement] = useState('');
   const [error, setError] = useState('');
@@ -226,6 +228,12 @@ export function ImpactAnalysis({ city, mission, placements, analysis, onAnalysis
       <p className="model-limit-notice" role="note">{MODEL_LIMIT_NOTICE}</p>
       {!validContext && <p role="alert">미션·도시·시설 배치 자료가 올바르지 않아 결과를 표시할 수 없습니다. 심의 접수에서 다시 확인해 주세요.</p>}
       <button type="button" className="impact-calculate-action" disabled={!validContext} onClick={calculate}>영향 계산</button>
+      <button
+        type="button"
+        className="resident-view-action"
+        disabled={!canOpenResident || analysis === null || !validatePlacementAnalysis(city, mission, placements, analysis)}
+        onClick={onOpenResident}
+      >주민 관점표로 이동</button>
       {error && <p role="alert">{error}</p>}
       <p role="status" aria-live="polite">{announcement}</p>
       <p className="selected-coordinate">현재 선택 좌표: {safePlacements.map((placement) => cityRecord.candidates.find((candidate) => candidate.id === placement.candidateId)?.coordinate.label ?? '선택 없음').join(', ') || '선택 없음'}</p>

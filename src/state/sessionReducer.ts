@@ -1,7 +1,9 @@
 import { CITIES } from '../domain/cities';
 import { MISSIONS } from '../domain/missions';
-import type { AccessMetrics, DataLayerId, FacilityPlacement, LearningEvidence, OpinionDraft, PlacementAnalysis, PriorityId, ProposalSnapshot, SessionState, StageId } from '../domain/types';
-import { validatePlacementAnalysis } from '../engine/validatePlacementAnalysis';
+import type { AccessMetrics, DataLayerId, FacilityPlacement, LearningEvidence, OpinionDraft, PlacementAnalysis, PriorityId, SessionState, StageId } from '../domain/types';
+import { sameSerializableValue, validatePlacementAnalysis } from '../engine/validatePlacementAnalysis';
+import { assessProposal } from '../engine/assessProposal';
+import { createProposalSnapshot } from '../engine/proposalComparison';
 import { validatePlacements } from '../domain/placementRules';
 import { STAGE_ORDER, type SessionAction } from './sessionTypes';
 
@@ -39,13 +41,6 @@ const copyAnalysis = (analysis: PlacementAnalysis): PlacementAnalysis => ({
   coverageGapZoneIds: [...analysis.coverageGapZoneIds],
   missionContext: { budgetTokens: analysis.missionContext.budgetTokens, serviceThreshold: analysis.missionContext.serviceThreshold, facilityKinds: [...analysis.missionContext.facilityKinds], conditionCodes: [...analysis.missionContext.conditionCodes] },
 });
-const copyProposal = (proposal: ProposalSnapshot): ProposalSnapshot => ({
-  id: proposal.id,
-  label: proposal.label,
-  placements: proposal.placements.map(copyPlacement),
-  analysis: copyAnalysis(proposal.analysis),
-  assessment: { verdict: proposal.assessment.verdict, conditionResults: proposal.assessment.conditionResults.map((result) => ({ ...result })), priorityConsistent: proposal.assessment.priorityConsistent, missingEvidence: [...proposal.assessment.missingEvidence], feedbackPrompts: [...proposal.assessment.feedbackPrompts] },
-});
 const copyEvidence = (evidence: LearningEvidence): LearningEvidence => ({ reviewedLayerIds: [...evidence.reviewedLayerIds], inspectedMetricIds: [...evidence.inspectedMetricIds], selectedUnderservedZoneIds: [...evidence.selectedUnderservedZoneIds], comparedProposalIds: [...evidence.comparedProposalIds] });
 const placementOrder = (placements: readonly FacilityPlacement[]): FacilityPlacement[] => [...placements].sort((left, right) => left.slotId.localeCompare(right.slotId));
 const samePlacements = (left: readonly FacilityPlacement[], right: readonly FacilityPlacement[]): boolean => {
@@ -77,13 +72,13 @@ const isFreshAnalysis = (state: SessionState, analysis: PlacementAnalysis | null
   return state.cityId !== null && state.missionId !== null
     && validatePlacementAnalysis(cityForId(state.cityId), missionForId(state.missionId), state.placements, analysis);
 };
-const hasAlternative = (state: SessionState): boolean => {
-  if (state.proposals.length < 2) return false;
-  const compared = new Set(state.evidence.comparedProposalIds);
-  return state.proposals.some((first, index) => state.proposals.slice(index + 1).some((second) =>
-    !samePlacements(first.placements, second.placements)
-    && (compared.has(first.id) || compared.has(second.id))));
-};
+const hasAlternative = (state: SessionState): boolean => state.proposals.length === 2
+  && state.proposals[0]?.id === 'proposal-a'
+  && state.proposals[1]?.id === 'proposal-b'
+  && !samePlacements(state.proposals[0].placements, state.proposals[1].placements)
+  && state.evidence.comparedProposalIds.length === 2
+  && state.evidence.comparedProposalIds[0] === 'proposal-a'
+  && state.evidence.comparedProposalIds[1] === 'proposal-b';
 
 export const selectOpinionReady = (state: SessionState): false => {
   void state;
@@ -97,7 +92,9 @@ export const selectStageGate = (state: SessionState, stage: StageId): boolean =>
     case 'analysis': return isFreshAnalysis(state, state.analysis)
       && state.evidence.inspectedMetricIds.includes('average')
       && state.evidence.inspectedMetricIds.includes('maximum');
-    case 'resident-view': return isFreshAnalysis(state, state.analysis) && state.evidence.selectedUnderservedZoneIds.length > 0 && hasAlternative(state);
+    case 'resident-view': return isFreshAnalysis(state, state.analysis)
+      && state.evidence.selectedUnderservedZoneIds.length > 0
+      && hasAlternative(state);
     case 'opinion': return selectOpinionReady(state);
     default: return false;
   }
@@ -159,11 +156,38 @@ export function sessionReducer(state: SessionState, action: SessionAction): Sess
         ? state
         : { ...state, evidence: { ...copyEvidence(state.evidence), selectedUnderservedZoneIds: [action.zoneId] } };
     case 'save-proposal': {
-      if (!isFreshAnalysis(state, action.proposal.analysis) || !samePlacements(action.proposal.placements, state.placements)) return state;
-      const nextProposal = copyProposal(action.proposal); const index = state.proposals.findIndex((proposal) => proposal.id === nextProposal.id); const proposals = [...state.proposals]; if (index < 0) proposals.push(nextProposal); else proposals[index] = nextProposal;
-      const hasDistinct = proposals.some((first, firstIndex) => proposals.slice(firstIndex + 1).some((second) => !samePlacements(first.placements, second.placements)));
-      const comparedProposalIds = hasDistinct ? proposals.map((proposal) => proposal.id) : [...state.evidence.comparedProposalIds];
-      return { ...state, proposals, evidence: { ...copyEvidence(state.evidence), comparedProposalIds } };
+      try {
+        const mission = missionForState(state);
+        if (mission === undefined || state.cityId === null || state.priorityId === null || !isFreshAnalysis(state, state.analysis)
+          || !isFreshAnalysis(state, action.proposal.analysis) || !samePlacements(action.proposal.placements, state.placements)) return state;
+        const expectedLabel = state.proposals.length === 0 ? 'A안' : 'B안';
+        if (action.proposal.label !== expectedLabel || action.proposal.id !== (expectedLabel === 'A안' ? 'proposal-a' : 'proposal-b')) return state;
+        if (state.evidence.selectedUnderservedZoneIds.length === 0
+          || !state.evidence.inspectedMetricIds.includes('average')
+          || !state.evidence.inspectedMetricIds.includes('maximum')) return state;
+        if (state.proposals.length > 1) return state;
+        const existingProposal = state.proposals[0];
+        if (state.proposals.length === 1 && (existingProposal === undefined || samePlacements(existingProposal.placements, state.placements))) return state;
+        const proposalEvidence = {
+          ...copyEvidence(state.evidence),
+          comparedProposalIds: state.proposals.length === 1 ? ['proposal-a', 'proposal-b'] : [],
+        };
+        const assessment = assessProposal(mission, state.priorityId, state.analysis, proposalEvidence);
+        const nextProposal = createProposalSnapshot(expectedLabel, state.placements, state.analysis, assessment);
+        if (!sameSerializableValue(action.proposal, nextProposal)) return state;
+        if (state.proposals.length === 0) return {
+          ...state,
+          proposals: [nextProposal],
+          evidence: { ...copyEvidence(state.evidence), comparedProposalIds: [] },
+        };
+        return {
+          ...state,
+          proposals: existingProposal === undefined ? state.proposals : [existingProposal, nextProposal],
+          evidence: { ...copyEvidence(state.evidence), comparedProposalIds: ['proposal-a', 'proposal-b'] },
+        };
+      } catch {
+        return state;
+      }
     }
     case 'set-opinion': return { ...state, opinion: { ...action.opinion, evidenceMetricIds: [...action.opinion.evidenceMetricIds] } };
     case 'go-to-stage': {

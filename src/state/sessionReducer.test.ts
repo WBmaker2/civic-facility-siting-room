@@ -4,6 +4,8 @@ import { createElement } from 'react';
 import { CITIES } from '../domain/cities';
 import { MISSIONS } from '../domain/missions';
 import { analyzePlacement } from '../engine/analyzePlacement';
+import { assessProposal } from '../engine/assessProposal';
+import { createProposalSnapshot } from '../engine/proposalComparison';
 import type { FacilityPlacement, PlacementAnalysis, ProposalSnapshot } from '../domain/types';
 import {
   createInitialSession,
@@ -35,19 +37,11 @@ const reorderRecordKeys = <T>(value: T): T => {
   return value;
 };
 
-const proposal = (id: string, placements: FacilityPlacement[] = [libraryPlacement]): ProposalSnapshot => ({
-  id,
-  label: `안 ${id}`,
-  placements,
-  analysis: makeAnalysis(placements),
-  assessment: {
-    verdict: 'revise',
-    conditionResults: [],
-    priorityConsistent: false,
-    missingEvidence: [],
-    feedbackPrompts: [],
-  },
-});
+const proposal = (state: SessionState, label: 'A안' | 'B안', placements: FacilityPlacement[] = [libraryPlacement]): ProposalSnapshot => {
+  const analysis = makeAnalysis(placements);
+  const evidence = { ...state.evidence, comparedProposalIds: label === 'B안' ? ['proposal-a', 'proposal-b'] : [] };
+  return createProposalSnapshot(label, placements, analysis, assessProposal(MISSIONS['bookmaru-library'], state.priorityId ?? 'access-equity', analysis, evidence));
+};
 
 const atDataRoom = (): SessionState => {
   let state = sessionReducer(createInitialSession(), { type: 'select-mission', missionId: 'bookmaru-library' });
@@ -175,8 +169,10 @@ describe('sessionReducer', () => {
     let state = atDataRoom();
     state = sessionReducer(state, { type: 'place-facility', placement: libraryPlacement });
     state = sessionReducer(state, { type: 'store-analysis', analysis: makeAnalysis() });
-    state = sessionReducer(state, { type: 'save-proposal', proposal: proposal('a') });
     state = sessionReducer(state, { type: 'inspect-metric', metricId: 'average' });
+    state = sessionReducer(state, { type: 'inspect-metric', metricId: 'maximum' });
+    state = sessionReducer(state, { type: 'select-underserved-zone', zoneId: 'mulbit-north' });
+    state = sessionReducer(state, { type: 'save-proposal', proposal: proposal(state, 'A안') });
     const before = state.placements;
     const changed = sessionReducer(state, { type: 'place-facility', placement: { ...libraryPlacement, candidateId: 'mulbit-b2' } });
     expect(changed.placements).toEqual([{ ...libraryPlacement, candidateId: 'mulbit-b2' }]);
@@ -241,13 +237,14 @@ describe('sessionReducer', () => {
     state = sessionReducer(state, { type: 'go-to-stage', stage: 'resident-view' });
     expect(state.stage).toBe('resident-view');
     state = sessionReducer(state, { type: 'select-underserved-zone', zoneId: 'mulbit-north' });
-    state = sessionReducer(state, { type: 'save-proposal', proposal: proposal('a') });
+    state = sessionReducer(state, { type: 'save-proposal', proposal: proposal(state, 'A안') });
     state = sessionReducer(state, { type: 'go-to-stage', stage: 'placement' });
     state = sessionReducer(state, { type: 'place-facility', placement: { ...libraryPlacement, candidateId: 'mulbit-b2' } });
     state = sessionReducer(state, { type: 'store-analysis', analysis: makeAnalysis([{ ...libraryPlacement, candidateId: 'mulbit-b2' }]) });
     state = sessionReducer(state, { type: 'inspect-metric', metricId: 'average' });
     state = sessionReducer(state, { type: 'inspect-metric', metricId: 'maximum' });
-    state = sessionReducer(state, { type: 'save-proposal', proposal: proposal('b', [{ ...libraryPlacement, candidateId: 'mulbit-b2' }]) });
+    state = sessionReducer(state, { type: 'select-underserved-zone', zoneId: 'mulbit-north' });
+    state = sessionReducer(state, { type: 'save-proposal', proposal: proposal(state, 'B안', [{ ...libraryPlacement, candidateId: 'mulbit-b2' }]) });
     state = sessionReducer(state, { type: 'go-to-stage', stage: 'analysis' });
     state = sessionReducer(state, { type: 'select-underserved-zone', zoneId: 'mulbit-north' });
     state = sessionReducer(state, { type: 'go-to-stage', stage: 'resident-view' });
@@ -264,6 +261,22 @@ describe('sessionReducer', () => {
     expect(sessionReducer(state, { type: 'store-analysis', analysis: { ...valid, nearestFacilityAccess: { ...valid.nearestFacilityAccess, zoneTravel: [] } } })).toBe(state);
     const combined = sessionReducer(atDataRoom(), { type: 'select-mission', missionId: 'combined-review' });
     expect(sessionReducer(combined, { type: 'store-analysis', analysis: valid })).toBe(combined);
+  });
+
+  it('rebuilds proposal assessment from current evidence and rejects forged snapshots', () => {
+    let state = atPlacement();
+    state = sessionReducer(state, { type: 'place-facility', placement: libraryPlacement });
+    state = sessionReducer(state, { type: 'store-analysis', analysis: makeAnalysis() });
+    state = sessionReducer(state, { type: 'inspect-metric', metricId: 'average' });
+    state = sessionReducer(state, { type: 'inspect-metric', metricId: 'maximum' });
+    state = sessionReducer(state, { type: 'select-underserved-zone', zoneId: 'mulbit-north' });
+    const evidence = { ...state.evidence, comparedProposalIds: [] };
+    const expected = createProposalSnapshot('A안', state.placements, state.analysis!, assessProposal(MISSIONS['bookmaru-library'], 'access-equity', state.analysis!, evidence));
+    const forged = { ...expected, assessment: { ...expected.assessment, conditionResults: [] } };
+    expect(sessionReducer(state, { type: 'save-proposal', proposal: forged })).toBe(state);
+    const accepted = sessionReducer(state, { type: 'save-proposal', proposal: expected });
+    expect(accepted.proposals).toHaveLength(1);
+    expect(Object.isFrozen(accepted.proposals[0])).toBe(true);
   });
 
   it('rejects invalid intermediate placements but allows valid slot replacement', () => {

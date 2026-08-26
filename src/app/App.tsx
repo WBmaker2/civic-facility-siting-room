@@ -6,6 +6,10 @@ import { ReviewIntake } from '../features/intake/ReviewIntake';
 import { CityDataRoom } from '../features/city-data/CityDataRoom';
 import { FacilityPlacementPanel } from '../features/placement/FacilityPlacementPanel';
 import { ImpactAnalysis } from '../features/analysis/ImpactAnalysis';
+import { ResidentPerspective } from '../features/perspective/ResidentPerspective';
+import { AlternativeComparison } from '../features/perspective/AlternativeComparison';
+import { compareProposals, createProposalSnapshot } from '../engine/proposalComparison';
+import { assessProposal } from '../engine/assessProposal';
 import { cityForId, missionForId } from '../state/sessionReducer';
 
 function StagePlaceholder() {
@@ -23,6 +27,17 @@ function SessionShell() {
   const { state, dispatch } = useSession();
   const city = cityForId(state.cityId);
   const mission = missionForId(state.missionId);
+  const proposalInput = (label: 'A안' | 'B안') => {
+    if (state.analysis === null || mission === undefined || state.priorityId === null) return null;
+    const evidence = {
+      ...state.evidence,
+      comparedProposalIds: label === 'B안' ? ['proposal-a', 'proposal-b'] : [],
+    };
+    return createProposalSnapshot(label, state.placements, state.analysis, assessProposal(mission, state.priorityId, state.analysis, evidence));
+  };
+  const comparison = state.proposals.length === 2 ? (() => {
+    try { return compareProposals(state.proposals[0]!, state.proposals[1]!); } catch { return null; }
+  })() : null;
   const stage = state.stage === 'intake'
     ? <ReviewIntake />
       : state.stage === 'data-room'
@@ -37,6 +52,8 @@ function SessionShell() {
               analysis={state.analysis}
               onAnalysis={(analysis) => dispatch({ type: 'store-analysis', analysis })}
               onInspectMetric={(metricId) => dispatch({ type: 'inspect-metric', metricId })}
+              onOpenResident={() => dispatch({ type: 'go-to-stage', stage: 'resident-view' })}
+              canOpenResident={state.evidence.inspectedMetricIds.includes('average') && state.evidence.inspectedMetricIds.includes('maximum')}
             />
             : state.stage === 'analysis'
               ? <section aria-labelledby="impact-analysis-heading" data-stage-id="analysis" role="region">
@@ -44,7 +61,26 @@ function SessionShell() {
                 <p role="alert">미션·배정 도시 자료가 올바르지 않아 영향 분석을 열 수 없습니다. 심의 접수에서 다시 선택해 주세요.</p>
                 <button type="button" disabled>영향 계산</button>
               </section>
-              : <StagePlaceholder />;
+              : state.stage === 'resident-view' && city !== undefined && mission !== undefined
+                ? <>
+                  <ResidentPerspective
+                    city={city}
+                    mission={mission}
+                    placements={state.placements}
+                    analysis={state.analysis}
+                    selectedZoneId={state.evidence.selectedUnderservedZoneIds[0] ?? null}
+                    onSelectZone={(zoneId) => dispatch({ type: 'select-underserved-zone', zoneId })}
+                    canSave={state.evidence.selectedUnderservedZoneIds.length > 0}
+                    onSaveA={() => { const proposal = proposalInput('A안'); if (proposal !== null) dispatch({ type: 'save-proposal', proposal }); }}
+                    onSaveB={() => { const proposal = proposalInput('B안'); if (proposal !== null) dispatch({ type: 'save-proposal', proposal }); }}
+                    hasSavedA={state.proposals.length > 0}
+                    hasSavedB={state.proposals.length > 1}
+                    savedProposal={state.proposals[0] ?? null}
+                    onRevise={() => dispatch({ type: 'go-to-stage', stage: 'placement' })}
+                  />
+                  <AlternativeComparison city={city} mission={mission} first={state.proposals[0] ?? null} second={state.proposals[1] ?? null} comparison={comparison} />
+                </>
+                : <StagePlaceholder />;
   return (
     <main>
       <h1>도시 기능 입지 심의실</h1>
