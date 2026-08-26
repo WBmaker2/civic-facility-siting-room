@@ -1,9 +1,18 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useEffect } from 'react';
+// @ts-expect-error Vite resolves CSS imports in the test runtime.
+import '../../styles/global.css';
+// @ts-expect-error Vite resolves CSS imports in the test runtime.
+import '../../styles/responsive.css';
 import { App } from '../../app/App';
 import { CityDataRoom } from './CityDataRoom';
+import { CityDataTable } from './CityDataTable';
+import { GridMap } from './GridMap';
+import { MARU_CITY } from '../../domain/cities/maruCity';
+import { MULBIT_CITY } from '../../domain/cities/mulbitCity';
+import type { DataLayerId } from '../../domain/types';
 import { SessionProvider, useSession } from '../../state/SessionProvider';
 
 async function renderSessionAtDataRoom() {
@@ -185,5 +194,192 @@ describe('CityDataRoom', () => {
     await user.click(screen.getByRole('tab', { name: '표 보기' }));
     expect(screen.queryByRole('tabpanel', { name: '지도 보기' })).not.toBeInTheDocument();
     expect(screen.getByRole('tabpanel', { name: '표 보기' })).toBeInTheDocument();
+  });
+
+  it('moves and activates tabs with Arrow/Home/End while keeping controls fresh', async () => {
+    const user = await renderSessionAtDataRoom();
+    const mapTab = screen.getByRole('tab', { name: '지도 보기' });
+    const tableTab = screen.getByRole('tab', { name: '표 보기' });
+    mapTab.focus();
+    await user.keyboard('{ArrowRight}');
+
+    expect(document.activeElement).toBe(tableTab);
+    expect(tableTab).toHaveAttribute('aria-selected', 'true');
+    expect(tableTab).toHaveAttribute('aria-controls', 'table-panel');
+    expect(mapTab).not.toHaveAttribute('aria-controls');
+    expect(document.getElementById(tableTab.getAttribute('aria-controls') ?? '')).toBeInTheDocument();
+    expect(document.getElementById('map-panel')).not.toBeInTheDocument();
+
+    await user.keyboard('{Home}');
+    expect(document.activeElement).toBe(mapTab);
+    expect(mapTab).toHaveAttribute('aria-selected', 'true');
+    expect(mapTab).toHaveAttribute('aria-controls', 'map-panel');
+    expect(tableTab).not.toHaveAttribute('aria-controls');
+    expect(document.getElementById('map-panel')).toBeInTheDocument();
+    expect(document.getElementById('table-panel')).not.toBeInTheDocument();
+
+    await user.keyboard('{End}');
+    expect(document.activeElement).toBe(tableTab);
+    expect(tableTab).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('keeps tab activation on the focused tab for all direction keys', async () => {
+    const user = await renderSessionAtDataRoom();
+    const mapTab = screen.getByRole('tab', { name: '지도 보기' });
+    const tableTab = screen.getByRole('tab', { name: '표 보기' });
+    mapTab.focus();
+    await user.keyboard('{ArrowDown}');
+    expect(document.activeElement).toBe(tableTab);
+    await user.keyboard('{ArrowUp}');
+    expect(document.activeElement).toBe(mapTab);
+    expect(mapTab).toHaveAttribute('tabindex', '0');
+    expect(tableTab).toHaveAttribute('tabindex', '-1');
+  });
+});
+
+const ALL_LAYERS: DataLayerId[] = ['population', 'roads', 'risk', 'cost', 'existing-facilities'];
+
+describe('GridMap and CityDataTable contracts', () => {
+  afterEach(() => cleanup());
+
+  it('dispatches B2 Enter and Space once each, but ignores empty and unrelated keys', () => {
+    const onSelect = vi.fn();
+    render(<GridMap city={MULBIT_CITY} activeLayerIds={ALL_LAYERS} selectedCandidateId={null} onSelectCandidate={onSelect} />);
+    const grid = screen.getByRole('grid');
+    grid.focus();
+    fireEvent.keyDown(grid, { key: 'ArrowRight' });
+    fireEvent.keyDown(grid, { key: 'ArrowDown' });
+    const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    grid.dispatchEvent(enter);
+    expect(enter.defaultPrevented).toBe(true);
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onSelect).toHaveBeenLastCalledWith('mulbit-b2');
+    const space = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true });
+    grid.dispatchEvent(space);
+    expect(space.defaultPrevented).toBe(true);
+    expect(onSelect).toHaveBeenCalledTimes(2);
+
+    fireEvent.keyDown(grid, { key: 'ArrowLeft' });
+    const empty = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    grid.dispatchEvent(empty);
+    expect(empty.defaultPrevented).toBe(false);
+    expect(onSelect).toHaveBeenCalledTimes(2);
+    const unrelated = new KeyboardEvent('keydown', { key: 'x', bubbles: true, cancelable: true });
+    grid.dispatchEvent(unrelated);
+    expect(unrelated.defaultPrevented).toBe(false);
+    expect(onSelect).toHaveBeenCalledTimes(2);
+    expect(document.activeElement).toBe(grid);
+  });
+
+  it('clamps all four directions and reports row/column indices and a real unique active cell', () => {
+    const user = userEvent.setup();
+    render(<GridMap city={MULBIT_CITY} activeLayerIds={ALL_LAYERS} selectedCandidateId={null} onSelectCandidate={vi.fn()} />);
+    const grid = screen.getByRole('grid');
+    grid.focus();
+    return user.keyboard('{ArrowLeft}{ArrowUp}{End}{ArrowDown}{ArrowDown}{ArrowDown}{ArrowDown}{ArrowDown}{ArrowRight}{Home}{ArrowUp}{ArrowUp}{ArrowUp}{ArrowUp}{ArrowUp}').then(() => {
+      expect(grid).toHaveAttribute('aria-activedescendant', 'mulbit-cell-a1');
+      const activeId = grid.getAttribute('aria-activedescendant');
+      expect(activeId).toBeTruthy();
+      expect(document.querySelectorAll(`#${activeId}`)).toHaveLength(1);
+      const b2 = screen.getByRole('gridcell', { name: /B2/ });
+      expect(b2).toHaveAttribute('aria-rowindex', '2');
+      expect(b2).toHaveAttribute('aria-colindex', '2');
+      expect(new Set([...grid.querySelectorAll('[role="gridcell"]')].map((cell) => cell.id)).size).toBe(25);
+    });
+  });
+
+  it('uses city-prefixed active IDs after city rerender and preserves selected state labels', () => {
+    const { rerender } = render(<GridMap city={MULBIT_CITY} activeLayerIds={ALL_LAYERS} selectedCandidateId={null} onSelectCandidate={vi.fn()} />);
+    const grid = screen.getByRole('grid');
+    rerender(<GridMap city={MARU_CITY} activeLayerIds={ALL_LAYERS} selectedCandidateId="maru-b2" onSelectCandidate={vi.fn()} />);
+    const activeId = grid.getAttribute('aria-activedescendant');
+    expect(activeId).toMatch(/^maru-cell-/);
+    expect(activeId && document.getElementById(activeId)).toBeTruthy();
+    const selected = screen.getByRole('gridcell', { name: /B2.*선택됨/ });
+    expect(selected).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('provides fixture-driven full table text and checked radio selection', () => {
+    render(<CityDataTable city={MULBIT_CITY} activeLayerIds={ALL_LAYERS} selectedCandidateId="mulbit-b2" onSelectCandidate={vi.fn()} />);
+    const table = screen.getByRole('table');
+    expect(table.querySelector('caption')).toHaveTextContent('물빛시(가상 도시)');
+    const a1 = screen.getByRole('row', { name: /A1/ });
+    expect(a1).toHaveTextContent('햇살 북쪽 구역');
+    expect(a1).toHaveTextContent('사람 토큰 5');
+    expect(a1).toHaveTextContent('이동이 불편할 수 있는 구역');
+    const d4 = screen.getByRole('row', { name: /D4/ });
+    expect(d4).toHaveTextContent('D4');
+    expect(d4).toHaveTextContent('느티마당 문화센터');
+    expect(d4).toHaveTextContent('기존 보장: 생활문화센터');
+    expect(d4).toHaveTextContent('도로 연결 있음');
+    const waterRisk = screen.getByRole('row', { name: /A4/ });
+    expect(waterRisk).toHaveTextContent('빗물 고임');
+    expect(waterRisk).toHaveTextContent('비가 오면 물이 고일 수 있는 표지');
+    for (const candidate of MULBIT_CITY.candidates) {
+      const row = screen.getByRole('row', { name: new RegExp(candidate.coordinate.label) });
+      expect(row).toHaveTextContent(candidate.name);
+      expect(row).toHaveTextContent(`비용 ${candidate.costTokens}단계`);
+      expect(within(row).getByRole('radio', { name: new RegExp(candidate.name) })).toBeInTheDocument();
+    }
+    expect(within(screen.getByRole('row', { name: /B2/ })).getByRole('radio')).toBeChecked();
+    cleanup();
+    render(<CityDataTable city={MARU_CITY} activeLayerIds={ALL_LAYERS} selectedCandidateId={null} onSelectCandidate={vi.fn()} />);
+    const maruRisk = screen.getByRole('row', { name: /A5/ });
+    expect(maruRisk).toHaveTextContent('급경사');
+    expect(maruRisk).toHaveTextContent('경사가 가파른 표지');
+  });
+
+  it('passes the same candidate ID through map and table callbacks', () => {
+    const mapSelect = vi.fn();
+    const tableSelect = vi.fn();
+    const { unmount } = render(<GridMap city={MULBIT_CITY} activeLayerIds={ALL_LAYERS} selectedCandidateId={null} onSelectCandidate={mapSelect} />);
+    fireEvent.click(screen.getByRole('gridcell', { name: /B2/ }));
+    expect(mapSelect).toHaveBeenCalledWith('mulbit-b2');
+    unmount();
+    render(<CityDataTable city={MULBIT_CITY} activeLayerIds={ALL_LAYERS} selectedCandidateId={null} onSelectCandidate={tableSelect} />);
+    fireEvent.click(screen.getByRole('radio', { name: /느린 강변 터/ }));
+    expect(tableSelect).toHaveBeenCalledWith('mulbit-b2');
+  });
+
+  it('renders every required pattern and icon in the two city fixtures', () => {
+    render(<GridMap city={MULBIT_CITY} activeLayerIds={ALL_LAYERS} selectedCandidateId={null} onSelectCandidate={vi.fn()} />);
+    const dots = screen.getByRole('gridcell', { name: /A1/ }).querySelector('[data-pattern="dots"]');
+    expect(dots).toHaveTextContent('●');
+    expect(dots).toHaveClass('pattern-dots');
+    const lines = screen.getByRole('gridcell', { name: /A1/ }).querySelector('[data-pattern="lines"]');
+    expect(lines).toHaveTextContent('↔');
+    expect(lines).toHaveClass('pattern-lines');
+    expect(screen.getByRole('gridcell', { name: /A4.*빗물 고임/ })).toHaveAttribute('data-pattern', 'waves');
+    const waves = screen.getByRole('gridcell', { name: /A4.*빗물 고임/ }).querySelector('[data-pattern="waves"]');
+    expect(waves).toHaveTextContent('≋');
+    expect(waves).toHaveClass('pattern-waves');
+    const ring = screen.getByRole('gridcell', { name: /B2/ }).querySelector('[data-pattern="ring"]');
+    expect(ring).toHaveClass('pattern-ring');
+    cleanup();
+    render(<GridMap city={MARU_CITY} activeLayerIds={ALL_LAYERS} selectedCandidateId={null} onSelectCandidate={vi.fn()} />);
+    const slope = screen.getByRole('gridcell', { name: /A5.*급경사/ });
+    expect(slope).toHaveAttribute('data-pattern', 'crosshatch');
+    const crosshatch = slope.querySelector('[data-pattern="crosshatch"]');
+    expect(crosshatch).toHaveTextContent('⌁');
+    expect(crosshatch).toHaveClass('pattern-crosshatch');
+  });
+
+  it('keeps the CSS contracts explicit for targets, focus, overflow, and mobile rule', () => {
+    const button = document.createElement('button');
+    const input = document.createElement('input');
+    const select = document.createElement('select');
+    const grid = document.createElement('div');
+    grid.className = 'city-grid';
+    const table = document.createElement('div');
+    table.className = 'city-table-scroll';
+    document.body.append(button, input, select, grid, table);
+    expect(getComputedStyle(button).minHeight).toBe('44px');
+    expect(getComputedStyle(input).minHeight).toBe('44px');
+    expect(getComputedStyle(select).minHeight).toBe('44px');
+    expect(getComputedStyle(document.body).overflowX).toBe('hidden');
+    expect(getComputedStyle(grid).overflow).toBe('auto');
+    expect(getComputedStyle(table).overflowX).toBe('auto');
+    const mediaRule = [...document.styleSheets].flatMap((sheet) => [...sheet.cssRules]).find((rule) => rule.cssText.includes('max-width: 600px'));
+    expect(mediaRule).toBeDefined();
   });
 });

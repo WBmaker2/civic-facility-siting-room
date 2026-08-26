@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState, type KeyboardEvent } from 'react';
 import type { DataLayerId } from '../../domain/types';
 import { PRIVACY_NOTICE } from '../../content/learnerCopy';
 import { cityForId, hasValidIntakeContext } from '../../state/sessionReducer';
@@ -19,12 +19,30 @@ export function CityDataRoom() {
   const { state, dispatch } = useSession();
   const city = cityForId(state.cityId);
   const [viewMode, setViewMode] = useState<'map' | 'table'>('map');
+  const tabRefs = useRef<Record<'map' | 'table', HTMLButtonElement | null>>({ map: null, table: null });
   const reviewedCount = new Set(state.evidence.reviewedLayerIds).size;
   const validReviewContext = hasValidIntakeContext(state);
   const canConfirm = validReviewContext && reviewedCount >= 2;
   const selectedCoordinate = state.selectedCandidateId
     ? city?.candidates.find((candidate) => candidate.id === state.selectedCandidateId)?.coordinate.label ?? '선택 없음'
     : '선택 없음';
+  const tabOrder: Array<'map' | 'table'> = ['map', 'table'];
+  const activateTab = (nextMode: 'map' | 'table') => {
+    setViewMode(nextMode);
+    tabRefs.current[nextMode]?.focus();
+  };
+  const handleTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>, currentMode: 'map' | 'table') => {
+    const currentIndex = tabOrder.indexOf(currentMode);
+    let nextIndex = currentIndex;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') nextIndex = (currentIndex + 1) % tabOrder.length;
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') nextIndex = (currentIndex + tabOrder.length - 1) % tabOrder.length;
+    if (event.key === 'Home') nextIndex = 0;
+    if (event.key === 'End') nextIndex = tabOrder.length - 1;
+    if (nextIndex !== currentIndex || event.key === 'Home' || event.key === 'End') {
+      event.preventDefault();
+      activateTab(tabOrder[nextIndex] ?? currentMode);
+    }
+  };
 
   return (
     <section aria-labelledby="stage-heading" data-stage-id="data-room" role="region">
@@ -58,21 +76,25 @@ export function CityDataRoom() {
           <div className="view-tabs" role="tablist" aria-label="도시 자료 표현 선택">
             <button
               id="map-tab"
+              ref={(element) => { tabRefs.current.map = element; }}
               type="button"
               role="tab"
               aria-selected={viewMode === 'map'}
-              aria-controls="map-panel"
+              aria-controls={viewMode === 'map' ? 'map-panel' : undefined}
               tabIndex={viewMode === 'map' ? 0 : -1}
               onClick={() => setViewMode('map')}
+              onKeyDown={(event) => handleTabKeyDown(event, 'map')}
             >지도 보기</button>
             <button
               id="table-tab"
+              ref={(element) => { tabRefs.current.table = element; }}
               type="button"
               role="tab"
               aria-selected={viewMode === 'table'}
-              aria-controls="table-panel"
+              aria-controls={viewMode === 'table' ? 'table-panel' : undefined}
               tabIndex={viewMode === 'table' ? 0 : -1}
               onClick={() => setViewMode('table')}
+              onKeyDown={(event) => handleTabKeyDown(event, 'table')}
             >표 보기</button>
           </div>
           {viewMode === 'map' ? (
