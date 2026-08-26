@@ -115,6 +115,13 @@ describe('fictional learning fixtures', () => {
   it('locks named valid placements and observable edge fixtures', () => {
     const site = (cityId: 'mulbit' | 'maru', candidateId: string) => CITIES[cityId].candidates.find((candidate) => candidate.id === candidateId);
     const assertDistinct = (ids: string[]) => expect(new Set(ids).size).toBe(ids.length);
+    const pairCost = (cityId: 'mulbit' | 'maru', candidateIds: string[]) => {
+      const candidates = candidateIds.map((candidateId) => site(cityId, candidateId));
+      expect(candidates.every((candidate) => candidate !== undefined)).toBe(true);
+      const resolved = candidates.filter((candidate) => candidate !== undefined);
+      assertDistinct(resolved.map((candidate) => candidate.id));
+      return resolved.reduce((total, candidate) => total + candidate.costTokens, 0);
+    };
     expect(site('mulbit', 'mulbit-b2')).toBeDefined();
     expect(site('mulbit', 'mulbit-c3')).toBeDefined();
     expect(site('maru', 'maru-c2')).toBeDefined();
@@ -123,16 +130,20 @@ describe('fictional learning fixtures', () => {
     expect(site('mulbit', 'mulbit-d3')).toBeDefined();
     expect(site('maru', 'maru-b2')).toBeDefined();
     expect(site('maru', 'maru-e3')).toBeDefined();
-    assertDistinct(['maru-b2', 'maru-d3']);
-    assertDistinct(['maru-c2', 'maru-e3']);
+    expect(pairCost('maru', ['maru-b2', 'maru-d3'])).toBeLessThanOrEqual(MISSIONS['combined-review'].budgetTokens);
+    expect(pairCost('maru', ['maru-c2', 'maru-e3'])).toBeLessThanOrEqual(MISSIONS['combined-review'].budgetTokens);
     expect(site('mulbit', 'mulbit-a4-water')?.costTokens).toBe(1);
     expect(site('maru', 'maru-a5-slope')?.costTokens).toBe(2);
     expect(site('maru', 'maru-e1-premium')?.costTokens).toBe(3);
     expect(site('maru', 'maru-d3')?.costTokens).toBe(2);
-    expect(CITIES.maru.riskMarkers.some((marker) => marker.nodeId === site('maru', 'maru-a5-slope')?.nodeId)).toBe(true);
-    expect(CITIES.mulbit.riskMarkers.some((marker) => marker.nodeId === site('mulbit', 'mulbit-a4-water')?.nodeId)).toBe(true);
+    expect(CITIES.maru.riskMarkers).toEqual(expect.arrayContaining([
+      expect.objectContaining({ nodeId: site('maru', 'maru-a5-slope')?.nodeId, kind: 'steep-slope' }),
+    ]));
+    expect(CITIES.mulbit.riskMarkers).toEqual(expect.arrayContaining([
+      expect.objectContaining({ nodeId: site('mulbit', 'mulbit-a4-water')?.nodeId, kind: 'water-ponding' }),
+    ]));
     expect(CITIES.mulbit.roads.some((edge) => edge.from === site('mulbit', 'mulbit-e5-island')?.nodeId || edge.to === site('mulbit', 'mulbit-e5-island')?.nodeId)).toBe(false);
-    expect((site('maru', 'maru-e1-premium')?.costTokens ?? 0) + (site('maru', 'maru-d3')?.costTokens ?? 0)).toBeGreaterThan(MISSIONS['combined-review'].budgetTokens);
+    expect(pairCost('maru', ['maru-e1-premium', 'maru-d3'])).toBeGreaterThan(MISSIONS['combined-review'].budgetTokens);
   });
 
   it('rejects malformed city shape, identifiers, coordinates, and references', () => {
