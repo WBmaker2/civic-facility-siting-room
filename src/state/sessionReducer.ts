@@ -1,7 +1,7 @@
 import { CITIES } from '../domain/cities';
 import { MISSIONS } from '../domain/missions';
 import type { AccessMetrics, DataLayerId, FacilityPlacement, LearningEvidence, OpinionDraft, PlacementAnalysis, PriorityId, ProposalSnapshot, SessionState, StageId } from '../domain/types';
-import { analyzePlacement } from '../engine/analyzePlacement';
+import { validatePlacementAnalysis } from '../engine/validatePlacementAnalysis';
 import { validatePlacements } from '../domain/placementRules';
 import { STAGE_ORDER, type SessionAction } from './sessionTypes';
 
@@ -73,86 +73,9 @@ export const isPlacementComplete = (state: SessionState): boolean => {
   if (mission === undefined || city === undefined || mission.cityId !== city.id || !Array.isArray(state.placements) || state.placements.length !== mission.facilityKinds.length) return false;
   return validatePlacements(mission, city, state.placements);
 };
-const expectedAnalysis = (state: SessionState): PlacementAnalysis | null => {
-  if (!isPlacementComplete(state) || state.cityId === null || state.missionId === null) return null;
-  try {
-    const city = cityForId(state.cityId); const mission = missionForId(state.missionId);
-    if (city === undefined || mission === undefined) return null;
-    return analyzePlacement(city, mission, state.placements);
-  } catch {
-    return null;
-  }
-};
-const isPlainRecord = (value: object): boolean => {
-  const prototype = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
-};
-const isStandardDenseArray = (value: object): value is unknown[] => {
-  if (Object.getPrototypeOf(value) !== Array.prototype) return false;
-  const array = value as unknown[];
-  const lengthDescriptor = Object.getOwnPropertyDescriptor(array, 'length');
-  if (lengthDescriptor === undefined || !('value' in lengthDescriptor) || !Number.isSafeInteger(lengthDescriptor.value)) return false;
-  const ownKeys = Reflect.ownKeys(array);
-  if (ownKeys.length !== lengthDescriptor.value + 1) return false;
-  for (let index = 0; index < lengthDescriptor.value; index += 1) {
-    const key = String(index);
-    const descriptor = Object.getOwnPropertyDescriptor(array, key);
-    if (descriptor === undefined || !('value' in descriptor)) return false;
-  }
-  return ownKeys.every((key) => key === 'length' || (typeof key === 'string' && /^\d+$/.test(key) && Number(key) < lengthDescriptor.value));
-};
-const sameSerializableValue = (left: unknown, right: unknown): boolean => {
-  const leftPath = new WeakSet<object>();
-  const rightPath = new WeakSet<object>();
-  const compare = (a: unknown, b: unknown): boolean => {
-    if (a === null || b === null) return a === b;
-    if (typeof a !== typeof b) return false;
-    if (typeof a === 'undefined' || typeof a === 'function' || typeof a === 'symbol' || typeof a === 'bigint') return false;
-    if (typeof a !== 'object') return Object.is(a, b);
-    if (typeof b !== 'object' || b === null) return false;
-    if (leftPath.has(a) || rightPath.has(b)) return false;
-    leftPath.add(a); rightPath.add(b);
-    try {
-      if (Array.isArray(a) || Array.isArray(b)) {
-        if (!Array.isArray(a) || !Array.isArray(b) || !isStandardDenseArray(a) || !isStandardDenseArray(b) || a.length !== b.length) return false;
-        for (let index = 0; index < a.length; index += 1) {
-          const leftDescriptor = Object.getOwnPropertyDescriptor(a, String(index));
-          const rightDescriptor = Object.getOwnPropertyDescriptor(b, String(index));
-          if (leftDescriptor === undefined || rightDescriptor === undefined
-            || !('value' in leftDescriptor) || !('value' in rightDescriptor)
-            || !compare(leftDescriptor.value, rightDescriptor.value)) return false;
-        }
-        return true;
-      }
-      if (!isPlainRecord(a) || !isPlainRecord(b)
-        || Object.getOwnPropertySymbols(a).length > 0
-        || Object.getOwnPropertySymbols(b).length > 0) return false;
-      const keysA = Object.keys(a).sort();
-      const keysB = Object.keys(b).sort();
-      const recordA = a as Record<string, unknown>;
-      const recordB = b as Record<string, unknown>;
-      return keysA.length === keysB.length
-        && keysA.every((key, index) => {
-          if (key !== keysB[index]) return false;
-          const descriptorA = Object.getOwnPropertyDescriptor(recordA, key);
-          const descriptorB = Object.getOwnPropertyDescriptor(recordB, key);
-          return descriptorA !== undefined && descriptorB !== undefined
-            && 'value' in descriptorA && 'value' in descriptorB
-            && compare(descriptorA.value, descriptorB.value);
-        });
-    } finally {
-      leftPath.delete(a); rightPath.delete(b);
-    }
-  };
-  try {
-    return compare(left, right);
-  } catch {
-    return false;
-  }
-};
 const isFreshAnalysis = (state: SessionState, analysis: PlacementAnalysis | null): analysis is PlacementAnalysis => {
-  const expected = expectedAnalysis(state);
-  return analysis !== null && expected !== null && sameSerializableValue(analysis, expected);
+  return state.cityId !== null && state.missionId !== null
+    && validatePlacementAnalysis(cityForId(state.cityId), missionForId(state.missionId), state.placements, analysis);
 };
 const hasAlternative = (state: SessionState): boolean => {
   if (state.proposals.length < 2) return false;
@@ -223,8 +146,7 @@ export function sessionReducer(state: SessionState, action: SessionAction): Sess
       }
     }
     case 'store-analysis': {
-      const expected = expectedAnalysis(state);
-      return expected !== null && sameSerializableValue(action.analysis, expected)
+      return validatePlacementAnalysis(cityForId(state.cityId), missionForId(state.missionId), state.placements, action.analysis)
         ? { ...state, analysis: copyAnalysis(action.analysis) }
         : state;
     }

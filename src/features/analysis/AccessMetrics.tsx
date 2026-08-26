@@ -85,10 +85,33 @@ export function AccessMetrics({ title, metrics, city, onInspectMetric, includeEv
       <p><strong>평균 이동 단위:</strong> {units(metrics.populationWeightedAverage, true)} · <strong>가장 긴 이동 단위:</strong> {units(metrics.longestReachableTravel)}</p>
       <p><strong>사람 토큰 분모:</strong> {denominator}</p>
       <p><strong>가장 불리한 구역:</strong> {worst}</p>
+      <p><strong>도달 불가 구역:</strong> {metrics.unreachableZoneIds.length}개{metrics.unreachableZoneIds.length > 0 ? ` — ${unreachable}` : ' (없음)'}</p>
       {metrics.unreachableZoneIds.length > 0 && (
         <p className="impact-high-visibility" role="note">도달 불가 구역은 평균에서 숨기지 않고 따로 표시했습니다</p>
       )}
     </section>
+  );
+}
+
+export function AccessPathTable({ city, metrics, caption }: { city: CityScenario; metrics: AccessMetricsValue; caption: string }) {
+  return (
+    <details className="impact-path-disclosure">
+      <summary>{caption} 확인</summary>
+      <div className="impact-table-scroll">
+        <table className="impact-path-table">
+          <caption>{caption}</caption>
+          <thead><tr><th scope="col">구역</th><th scope="col">노드 경로</th><th scope="col">이동 단위</th><th scope="col">도달 상태</th></tr></thead>
+          <tbody>{metrics.zoneTravel.map((row) => (
+            <tr key={row.zoneId}>
+              <th scope="row">{zoneName(city, row.zoneId)}</th>
+              <td>{row.pathNodeIds.length === 0 ? '경로 없음' : row.pathNodeIds.join(' → ')}</td>
+              <td>{row.travelUnits === null ? '도달 불가' : `${row.travelUnits} 가상 단위`}</td>
+              <td>{row.travelUnits === null ? '도달 불가' : '도달 가능'}</td>
+            </tr>
+          ))}</tbody>
+        </table>
+      </div>
+    </details>
   );
 }
 

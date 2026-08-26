@@ -80,6 +80,21 @@ describe('ImpactAnalysis', () => {
     expect(screen.getByRole('status')).toHaveTextContent('영향 계산이 완료되었습니다. 평균, 가장 긴 이동, 도달 불가, 위험, 비용을 함께 확인하세요.');
   });
 
+  it('shows risk kind and label separately from exact per-site cost and budget', () => {
+    const riskyPlacement = { ...placement, candidateId: 'candidate-risk' };
+    const analysis = analyzePlacement(tinyCity, tinyMission, [riskyPlacement]);
+    render(<ImpactAnalysis city={tinyCity} mission={tinyMission} placements={[riskyPlacement]} analysis={analysis} onAnalysis={vi.fn()} onInspectMetric={vi.fn()} />);
+    const risk = screen.getByRole('heading', { name: '위험' }).closest('section');
+    const cost = screen.getByRole('heading', { name: '비용' }).closest('section');
+    expect(risk).not.toBeNull();
+    expect(cost).not.toBeNull();
+    expect(within(risk!).getByRole('button', { name: '위험: 1곳' })).toBeInTheDocument();
+    expect(risk).toHaveTextContent('water-ponding · 물 고임 · 물 고임 표지');
+    expect(within(cost!).getByRole('button', { name: '비용: 3 / 3 토큰' })).toBeInTheDocument();
+    expect(cost).toHaveTextContent('터 candidate-risk 3토큰');
+    expect(screen.getByRole('definition', { name: '예산' })).toHaveTextContent('3 / 3 토큰');
+  });
+
   it('renders selection and results tabs with coordinates on narrow layouts', () => {
     Object.defineProperty(window, 'matchMedia', { configurable: true, value: (query: string) => ({ matches: query.includes('max-width: 600px'), media: query, onchange: null, addEventListener: vi.fn(), removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn(), dispatchEvent: vi.fn() }) });
     render(<ImpactAnalysis city={tinyCity} mission={tinyMission} placements={[placement]} analysis={analysisFor()} onAnalysis={vi.fn()} onInspectMetric={vi.fn()} />);

@@ -3,7 +3,8 @@ import { MODEL_LIMIT_NOTICE } from '../../content/learnerCopy';
 import { analyzePlacement } from '../../engine/analyzePlacement';
 import type { CityScenario, FacilityKind, FacilityPlacement, LearningEvidence, MissionDefinition, PlacementAnalysis } from '../../domain/types';
 import { validatePlacements } from '../../domain/placementRules';
-import { AccessMetrics, EvidenceButton, ZoneNames } from './AccessMetrics';
+import { validatePlacementAnalysis } from '../../engine/validatePlacementAnalysis';
+import { AccessMetrics, AccessPathTable, EvidenceButton, ZoneNames } from './AccessMetrics';
 import { CalculationBasis } from './CalculationBasis';
 
 export interface ImpactAnalysisProps {
@@ -24,13 +25,19 @@ const facilityLabels: Record<FacilityKind, string> = {
   'culture-center': '생활문화센터',
 };
 
-const samePlacements = (left: readonly FacilityPlacement[], right: readonly FacilityPlacement[]): boolean => {
-  const ordered = (items: readonly FacilityPlacement[]) => [...items].sort((a, b) => a.slotId.localeCompare(b.slotId));
-  const a = ordered(left); const b = ordered(right);
-  return a.length === b.length && a.every((item, index) => {
-    const other = b[index];
-    return other !== undefined && item.slotId === other.slotId && item.facilityKind === other.facilityKind && item.candidateId === other.candidateId;
-  });
+const isValidImpactContext = (city: unknown, mission: unknown, placements: unknown): boolean => {
+  try {
+    if (city === null || typeof city !== 'object' || mission === null || typeof mission !== 'object') return false;
+    const cityRecord = city as CityScenario;
+    const missionRecord = mission as MissionDefinition;
+    return Array.isArray(missionRecord.facilityKinds)
+      && cityRecord.id === missionRecord.cityId
+      && Array.isArray(placements)
+      && placements.length === missionRecord.facilityKinds.length
+      && validatePlacements(missionRecord, cityRecord, placements);
+  } catch {
+    return false;
+  }
 };
 
 function SelectionPanel({ city, mission, placements }: Pick<ImpactAnalysisProps, 'city' | 'mission' | 'placements'>) {
@@ -59,7 +66,13 @@ function ConstraintSection({
   city: CityScenario;
   onInspectMetric: ImpactAnalysisProps['onInspectMetric'];
 }) {
-  const riskySites = analysis.riskyCandidateIds.map((id) => city.candidates.find((candidate) => candidate.id === id)?.name ?? id);
+  const riskKindLabels: Record<string, string> = { 'water-ponding': '물 고임', 'steep-slope': '급경사' };
+  const riskySites = analysis.riskyCandidateIds.map((id) => {
+    const site = city.candidates.find((candidate) => candidate.id === id);
+    const marker = site === undefined ? undefined : city.riskMarkers.find((item) => item.nodeId === site.nodeId);
+    if (site === undefined || marker === undefined) return site?.name ?? id;
+    return `${site.name} (${marker.kind} · ${riskKindLabels[marker.kind] ?? marker.kind} · ${marker.label})`;
+  });
   const costs = analysis.placements.map((placement) => {
     const site = city.candidates.find((candidate) => candidate.id === placement.candidateId);
     return site === undefined ? placement.candidateId : `${site.name} ${site.costTokens}토큰`;
@@ -98,17 +111,21 @@ function FacilityRoleResults({ city, mission, analysis, onInspectMetric }: {
   return (
     <section className="impact-role-results" aria-labelledby="facility-role-heading">
       <h3 id="facility-role-heading">시설 역할별 접근 결과</h3>
-      {analysis.placements.map((placement) => (
-        <AccessMetrics
-          key={placement.slotId}
-          title={`${facilityLabels[placement.facilityKind]} 개별 접근`}
-          metrics={analysis.perFacility[placement.slotId]!}
-          city={city}
-          onInspectMetric={onInspectMetric}
-          includeEvidence={false}
-        />
-      ))}
-      <AccessMetrics title="가장 가까운 시설 기준" metrics={analysis.nearestFacilityAccess} city={city} onInspectMetric={onInspectMetric} includeEvidence={false} />
+      {analysis.placements.map((placement) => {
+        const metrics = analysis.perFacility[placement.slotId];
+        if (metrics === undefined) return null;
+        const facilityName = facilityLabels[placement.facilityKind];
+        return (
+          <div key={placement.slotId} className="impact-role-result">
+            <AccessMetrics title={`${facilityName} 개별 접근`} metrics={metrics} city={city} onInspectMetric={onInspectMetric} includeEvidence={false} />
+            <AccessPathTable city={city} metrics={metrics} caption={`${facilityName} 개별 접근 경로`} />
+          </div>
+        );
+      })}
+      <div className="impact-role-result">
+        <AccessMetrics title="가장 가까운 시설 기준" metrics={analysis.nearestFacilityAccess} city={city} onInspectMetric={onInspectMetric} includeEvidence={false} />
+        <AccessPathTable city={city} metrics={analysis.nearestFacilityAccess} caption="가장 가까운 시설 기준 접근 경로" />
+      </div>
     </section>
   );
 }
@@ -121,12 +138,11 @@ function ResultsPanel({ city, mission, analysis, placements, onInspectMetric }: 
   onInspectMetric: ImpactAnalysisProps['onInspectMetric'];
 }) {
   const displayAnalysis = analysis !== null
-    && analysis.cityId === city.id
-    && analysis.missionId === mission.id
-    && samePlacements(analysis.placements, placements)
+    && validatePlacementAnalysis(city, mission, placements, analysis)
     ? analysis
     : null;
-  if (displayAnalysis === null) return <p role="alert">아직 새로 계산한 결과가 없습니다. 시설 배치가 완성되면 영향 계산을 눌러 주세요.</p>;
+  if (analysis === null) return <p role="alert">아직 계산 전입니다. 시설 배치가 완성되면 영향 계산을 눌러 주세요.</p>;
+  if (displayAnalysis === null) return <p role="alert">현재 배치와 일치하는 새 분석이 아닙니다. 영향 계산을 다시 눌러 주세요.</p>;
   return (
     <>
       <AccessMetrics title="전체 주민 접근" metrics={displayAnalysis.nearestFacilityAccess} city={city} onInspectMetric={onInspectMetric} />
@@ -158,10 +174,19 @@ export function ImpactAnalysis({ city, mission, placements, analysis, onAnalysis
   const [error, setError] = useState('');
   const isNarrow = useNarrowLayout();
   const tabRefs = useRef<Record<TabId, HTMLButtonElement | null>>({ selection: null, results: null });
-  const validContext = city !== undefined && mission !== undefined && city.id === mission.cityId
-    && Array.isArray(placements)
-    && placements.length === mission.facilityKinds.length
-    && validatePlacements(mission, city, placements);
+  const cityRecord = city !== null && typeof city === 'object' ? city as CityScenario : null;
+  const missionRecord = mission !== null && typeof mission === 'object' ? mission as MissionDefinition : null;
+  const validContext = isValidImpactContext(city, mission, placements);
+  if (!validContext || cityRecord === null || missionRecord === null) {
+    return (
+      <section aria-labelledby="impact-analysis-heading" data-stage-id="analysis" role="region">
+        <h2 id="impact-analysis-heading">영향 분석실</h2>
+        <p role="alert">미션·도시·시설 배치 자료가 올바르지 않아 결과를 표시할 수 없습니다. 심의 접수에서 다시 확인해 주세요.</p>
+        <button type="button" disabled>영향 계산</button>
+      </section>
+    );
+  }
+  const safePlacements = placements;
 
   const calculate = () => {
     if (!validContext) {
@@ -197,23 +222,25 @@ export function ImpactAnalysis({ city, mission, placements, analysis, onAnalysis
   return (
     <section aria-labelledby="impact-analysis-heading" data-stage-id="analysis" role="region">
       <h2 id="impact-analysis-heading">영향 분석실</h2>
-      <p>{mission.title}</p>
+      <p>{missionRecord.title}</p>
       <p className="model-limit-notice" role="note">{MODEL_LIMIT_NOTICE}</p>
       {!validContext && <p role="alert">미션·도시·시설 배치 자료가 올바르지 않아 결과를 표시할 수 없습니다. 심의 접수에서 다시 확인해 주세요.</p>}
       <button type="button" className="impact-calculate-action" disabled={!validContext} onClick={calculate}>영향 계산</button>
       {error && <p role="alert">{error}</p>}
       <p role="status" aria-live="polite">{announcement}</p>
-      <p className="selected-coordinate">현재 선택 좌표: {placements.map((placement) => city.candidates.find((candidate) => candidate.id === placement.candidateId)?.coordinate.label ?? '선택 없음').join(', ') || '선택 없음'}</p>
+      <p className="selected-coordinate">현재 선택 좌표: {safePlacements.map((placement) => cityRecord.candidates.find((candidate) => candidate.id === placement.candidateId)?.coordinate.label ?? '선택 없음').join(', ') || '선택 없음'}</p>
 
-      <div className="impact-tabs" role="tablist" aria-label="영향 분석 표현 선택" hidden={!isNarrow}>
-        <button id="selection-tab" ref={(element) => { tabRefs.current.selection = element; }} type="button" role="tab" aria-selected={activeTab === 'selection'} aria-controls="selection-panel" tabIndex={activeTab === 'selection' ? 0 : -1} onClick={() => setActiveTab('selection')} onKeyDown={(event) => onTabKeyDown(event, 'selection')}>선택 위치</button>
-        <button id="results-tab" ref={(element) => { tabRefs.current.results = element; }} type="button" role="tab" aria-selected={activeTab === 'results'} aria-controls="results-panel" tabIndex={activeTab === 'results' ? 0 : -1} onClick={() => setActiveTab('results')} onKeyDown={(event) => onTabKeyDown(event, 'results')}>결과표</button>
-      </div>
+      {isNarrow && (
+        <div className="impact-tabs" role="tablist" aria-label="영향 분석 표현 선택">
+          <button id="selection-tab" ref={(element) => { tabRefs.current.selection = element; }} type="button" role="tab" aria-selected={activeTab === 'selection'} aria-controls="selection-panel" tabIndex={activeTab === 'selection' ? 0 : -1} onClick={() => setActiveTab('selection')} onKeyDown={(event) => onTabKeyDown(event, 'selection')}>선택 위치</button>
+          <button id="results-tab" ref={(element) => { tabRefs.current.results = element; }} type="button" role="tab" aria-selected={activeTab === 'results'} aria-controls="results-panel" tabIndex={activeTab === 'results' ? 0 : -1} onClick={() => setActiveTab('results')} onKeyDown={(event) => onTabKeyDown(event, 'results')}>결과표</button>
+        </div>
+      )}
 
       <div className="impact-panels">
         {isNarrow ? (
           <div id="selection-panel" role="tabpanel" aria-labelledby="selection-tab" hidden={activeTab !== 'selection'}>
-            <SelectionPanel city={city} mission={mission} placements={placements} />
+            <SelectionPanel city={cityRecord} mission={missionRecord} placements={safePlacements} />
           </div>
         ) : (
           <section className="impact-selection-panel" aria-labelledby="selection-heading">
@@ -223,12 +250,12 @@ export function ImpactAnalysis({ city, mission, placements, analysis, onAnalysis
         )}
         {isNarrow ? (
           <div id="results-panel" role="tabpanel" aria-labelledby="results-tab" hidden={activeTab !== 'results'}>
-            <ResultsPanel city={city} mission={mission} analysis={analysis} placements={placements} onInspectMetric={onInspectMetric} />
+            <ResultsPanel city={cityRecord} mission={missionRecord} analysis={analysis} placements={safePlacements} onInspectMetric={onInspectMetric} />
           </div>
         ) : (
           <section className="impact-results-panel" aria-labelledby="results-heading">
             <h3 id="results-heading">결과표</h3>
-            <ResultsPanel city={city} mission={mission} analysis={analysis} placements={placements} onInspectMetric={onInspectMetric} />
+            <ResultsPanel city={cityRecord} mission={missionRecord} analysis={analysis} placements={safePlacements} onInspectMetric={onInspectMetric} />
           </section>
         )}
       </div>
