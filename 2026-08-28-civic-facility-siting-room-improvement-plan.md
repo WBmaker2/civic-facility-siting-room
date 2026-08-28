@@ -1,7 +1,7 @@
 # Civic Facility Siting Room Improvement Plan
 
 작성일: 2026-08-28
-상태: 계획 작성 후 Tasks 1~5 구현 및 로컬 품질 검증 완료; GitHub push·Pages 재배포 전
+상태: Tasks 1~5 구현, 로컬 품질 검증, 커밋·푸시·GitHub Pages 배포 완료
 대상: `/Volumes/ External Drive 256G/Dev2/codex/civic-facility-siting-room`
 검증 대상: `https://wbmaker2.github.io/civic-facility-siting-room/`
 
@@ -225,24 +225,25 @@
 - [x] `npm run test:e2e`로 학습 흐름·키보드·모바일·reduced motion·privacy 네트워크 경계를 실행합니다.
 - [x] `npm run check:lines`로 500줄 이상 파일이 없는지 확인합니다.
 - [x] `npm run build`로 GitHub Pages용 상대 자산 빌드를 확인합니다.
-- [ ] 공개 URL에서 HTTP 200, 문서 제목, HTML이 참조하는 JS/CSS, 초기 학습 경로, 업데이트 내역 버튼, 모바일 표 경로를 확인합니다.
+- [x] 공개 URL에서 HTTP 200, 문서 제목, HTML이 참조하는 JS/CSS, 초기 학습 경로와 업데이트 내역 문구를 확인하고, 동일 커밋의 로컬 E2E에서 모바일 표 경로를 확인합니다.
 - [x] 로컬 E2E의 콘솔 오류가 0개인지 확인하고, `HTMLCanvasElement.getContext` 같은 테스트 환경 경고는 제품 오류와 구분해 기록합니다.
 - [x] `git diff`를 계획과 대조하여 범위 밖 외부 서비스·저장소·VoiceOver 구현이 추가되지 않았는지 검토합니다.
 
 ## Implementation record
 
-2026-08-28 기준으로 Tasks 1~5를 계획 순서대로 구현했습니다. 공개 Pages 항목은 기존 배포본의 HTTP 상태만 확인했으며, 이번 로컬 개선 변경을 공개 경로에 반영하는 push·재배포는 실행하지 않았습니다.
+2026-08-28 기준으로 Tasks 1~5를 계획 순서대로 구현하고, 커밋 `bca6b15`를 `main`에 푸시하여 GitHub Pages에 배포했습니다. 공개 정적 스모크는 새 배포본을 대상으로 수행했으며, 실제 모바일 표 상호작용은 동일 커밋의 로컬 Playwright E2E에서 확인했습니다.
 
 - `npm run check`: lint 통과, 단위 테스트 26개 파일·239개 테스트 통과, 500줄 이상 소스 0개, Vite production build 통과
 - `npm run test:a11y`: axe/ARIA 테스트 2개 통과
 - `npm run test:e2e`: learner flow·keyboard·mobile/reduced-motion·privacy·table-only 7개 통과
 - `git diff --check`: 공백 오류 없음
-- `curl -sS -I https://wbmaker2.github.io/civic-facility-siting-room/`: 기존 공개 경로 HTTP/2 200
+- `curl -sS -L https://wbmaker2.github.io/civic-facility-siting-room/`: HTTP/2 200, 제목 `도시 기능 입지 심의실`, 참조 JS/CSS 각 HTTP 200, 새 후보지·결과 카드·의견서 완료 문구 확인
+- GitHub Actions `33142382204`: build·deploy 성공, 공개 주소 [https://wbmaker2.github.io/civic-facility-siting-room/](https://wbmaker2.github.io/civic-facility-siting-room/) 제공
 - 테스트 환경의 `HTMLCanvasElement.getContext` jsdom 경고는 제품 실패가 아니며, VoiceOver/TalkBack 실행은 범위에서 제외했습니다.
 
 ## Future commands and expected outcomes
 
-아래 명령은 계획된 구현·검증 순서이며 문서 작성 시점에는 실행하지 않습니다.
+아래 명령은 구현·검증을 재현할 수 있는 순서입니다.
 
 ```bash
 npx vitest run src/features/perspective/perspective.test.tsx src/features/analysis/ImpactAnalysis.test.tsx
