@@ -10,6 +10,7 @@ import { App } from '../../app/App';
 import { CityDataRoom } from './CityDataRoom';
 import { CityDataTable } from './CityDataTable';
 import { GridMap } from './GridMap';
+import { LayerLegend } from './LayerLegend';
 import { MARU_CITY } from '../../domain/cities/maruCity';
 import { MULBIT_CITY } from '../../domain/cities/mulbitCity';
 import type { DataLayerId } from '../../domain/types';
@@ -26,6 +27,21 @@ async function renderSessionAtDataRoom() {
 
 describe('CityDataRoom', () => {
   afterEach(() => cleanup());
+
+  it('keeps candidate presence visible without exposing cost when the cost layer is off', () => {
+    render(<GridMap city={MULBIT_CITY} activeLayerIds={['population', 'roads']} selectedCandidateId={null} onSelectCandidate={vi.fn()} />);
+    const candidateCell = screen.getByRole('gridcell', { name: /B2/ });
+    expect(candidateCell).toHaveTextContent('후보지 있음');
+    expect(candidateCell).not.toHaveTextContent('비용');
+    expect(candidateCell).not.toHaveAttribute('aria-label', expect.stringContaining('빗물 고임'));
+    expect(candidateCell).not.toHaveAttribute('aria-label', expect.stringContaining('기존 시설'));
+  });
+
+  it('offers a mobile table hint and a collapsible legend', () => {
+    render(<><CityDataTable city={MULBIT_CITY} activeLayerIds={['population', 'roads']} selectedCandidateId={null} onSelectCandidate={vi.fn()} /><LayerLegend activeLayerIds={['population']} /></>);
+    expect(screen.getByText('모바일에서는 표를 좌우로 밀어 더 보기')).toBeInTheDocument();
+    expect(screen.getByText('켜진 자료층 범례').tagName).toBe('SUMMARY');
+  });
 
   it('uses table only for the exact query mode and keeps unknown mode on map without storage', async () => {
     const getItem = vi.spyOn(Storage.prototype, 'getItem');
@@ -190,7 +206,7 @@ describe('CityDataRoom', () => {
     expect(table).toHaveTextContent('기존 보장 시설 없음');
     expect(table).toHaveTextContent('후보지 없음');
 
-    const candidate = screen.getByRole('radio', { name: /느린 강변 터.*비용 1/ });
+    const candidate = screen.getByRole('radio', { name: /느린 강변 터/ });
     await user.click(candidate);
     expect(candidate).toBeChecked();
     expect(screen.getByText('현재 선택 좌표: B2')).toBeInTheDocument();

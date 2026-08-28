@@ -73,29 +73,31 @@ function cellId(city: CityScenario, coordinate: GridCoordinate): string {
   return `${city.id}-cell-${coordinate.label.toLowerCase()}`;
 }
 
-function cellLabel(data: CoordinateData, selectedCandidateId: string | null): string {
+function cellLabel(data: CoordinateData, selectedCandidateId: string | null, activeLayerIds: readonly DataLayerId[]): string {
   const sections = [data.coordinate.label];
-  if (data.zoneNames.length > 0) {
+  if (hasLayer(activeLayerIds, 'population') && data.zoneNames.length > 0) {
     sections.push(`${data.zoneNames.join(', ')}, 사람 토큰 ${data.peopleTokens}${data.mobilityBarrier ? ', 이동이 불편할 수 있는 구역' : ''}`);
     sections.push(data.coverageNames.length > 0 ? `기존 보장: ${data.coverageNames.join(', ')}` : '기존 보장 시설 없음');
-  } else {
+  } else if (hasLayer(activeLayerIds, 'population')) {
     sections.push('인구 구역 없음, 기존 보장 시설 없음');
   }
-  sections.push(data.roadUnits.length > 0
+  if (hasLayer(activeLayerIds, 'roads')) sections.push(data.roadUnits.length > 0
     ? `도로 연결 있음, 연결 이동 단위 ${data.roadUnits.join(', ')}`
     : '도로 연결 없음');
-  if (data.riskKinds.length > 0) {
+  if (hasLayer(activeLayerIds, 'risk') && data.riskKinds.length > 0) {
     sections.push(data.riskKinds.map((kind, index) => `${riskName(kind)}: ${data.riskLabels[index] ?? ''}`).join(', '));
-  } else {
+  } else if (hasLayer(activeLayerIds, 'risk')) {
     sections.push('위험 표지 없음');
   }
   if (data.candidateNames.length > 0) {
-    sections.push(data.candidateNames.map((name, index) => `후보지 ${name}, 비용 ${data.candidateCosts[index]}단계`).join(', '));
+    sections.push(hasLayer(activeLayerIds, 'cost')
+      ? data.candidateNames.map((name, index) => `후보지 ${name}, 비용 ${data.candidateCosts[index]}단계`).join(', ')
+      : `후보지 있음 (${data.candidateNames.length}곳)`);
     sections.push(selectedCandidateId !== null && data.candidateIds.includes(selectedCandidateId) ? '선택됨' : '선택되지 않음');
   } else {
     sections.push('후보지 없음');
   }
-  sections.push(data.existingNames.length > 0 ? `기존 시설 ${data.existingNames.join(', ')}` : '기존 시설 없음');
+  if (hasLayer(activeLayerIds, 'existing-facilities')) sections.push(data.existingNames.length > 0 ? `기존 시설 ${data.existingNames.join(', ')}` : '기존 시설 없음');
   return sections.join('. ');
 }
 
@@ -170,7 +172,7 @@ export function GridMap({ city, activeLayerIds, selectedCandidateId, onSelectCan
               const coordinate = city.nodes.find((node) => node.row === row && node.column === column)
                 ?? { row, column, label: `${String.fromCharCode(65 + column)}${row + 1}` };
               const data = getCoordinateData(city, coordinate);
-              const label = cellLabel(data, selectedCandidateId);
+              const label = cellLabel(data, selectedCandidateId, activeLayerIds);
               const isActive = coordinate.label === activeCoordinate.label;
               const isSelected = data.candidateIds.includes(selectedCandidateId ?? '');
               return (
@@ -194,6 +196,7 @@ export function GridMap({ city, activeLayerIds, selectedCandidateId, onSelectCan
                   {hasLayer(activeLayerIds, 'population') && data.zoneNames.length > 0 && <span className="grid-marker pattern-dots" data-pattern="dots">● {data.peopleTokens}</span>}
                   {hasLayer(activeLayerIds, 'roads') && <span className="grid-marker pattern-lines" data-pattern="lines">↔ {data.roadUnits.length > 0 ? data.roadUnits.join('/') : '연결 없음'}</span>}
                   {hasLayer(activeLayerIds, 'risk') && data.riskKinds.map((kind, index) => <span className={`grid-marker pattern-${riskPattern(kind)}`} data-pattern={riskPattern(kind)} key={`${kind}-${index}`}>{kind === 'water-ponding' ? '≋' : '⌁'} {riskName(kind)}</span>)}
+                  {data.candidateNames.length > 0 && <span className="grid-marker pattern-ring candidate-presence-marker" data-pattern="ring">⌖ 후보지 있음</span>}
                   {hasLayer(activeLayerIds, 'cost') && data.candidateNames.map((name, index) => <span className="grid-marker pattern-ring" data-pattern="ring" key={`${name}-${index}`}>▣ {name} · 비용 {data.candidateCosts[index]}</span>)}
                   {hasLayer(activeLayerIds, 'existing-facilities') && data.existingNames.map((name) => <span className="grid-marker pattern-ring" data-pattern="ring" key={name}>⌂ {name}</span>)}
                   {isSelected && <span className="grid-marker selected-marker">✓ 선택됨</span>}

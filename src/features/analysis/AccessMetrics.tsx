@@ -1,4 +1,4 @@
-import type { CityScenario, LearningEvidence, AccessMetrics as AccessMetricsValue } from '../../domain/types';
+import type { CityScenario, GuidedActionId, LearningEvidence, AccessMetrics as AccessMetricsValue } from '../../domain/types';
 
 export interface AccessMetricsProps {
   title: string;
@@ -6,6 +6,7 @@ export interface AccessMetricsProps {
   city: CityScenario;
   onInspectMetric: (metricId: LearningEvidence['inspectedMetricIds'][number]) => void;
   includeEvidence?: boolean;
+  currentAction?: GuidedActionId;
 }
 
 const metricLabel: Record<string, string> = {
@@ -29,30 +30,34 @@ export function EvidenceButton({
   value,
   detail,
   onInspectMetric,
+  guided = false,
 }: {
   metricId: LearningEvidence['inspectedMetricIds'][number];
   label: string;
   value: string;
   detail: string;
   onInspectMetric: AccessMetricsProps['onInspectMetric'];
+  guided?: boolean;
 }) {
   return (
     <button
       type="button"
-      className="impact-evidence-card"
+      className={`impact-evidence-card${guided ? ' gi-pulse' : ''}`}
       aria-label={`${label}: ${value}`}
       aria-describedby={`metric-detail-${metricId}`}
       onFocus={() => onInspectMetric(metricId)}
       onClick={() => onInspectMetric(metricId)}
+      data-guided={guided ? 'true' : undefined}
     >
       <span className="impact-metric-label">{label}</span>
       <strong>{value}</strong>
       <span id={`metric-detail-${metricId}`} className="impact-metric-detail">{detail}</span>
+      {guided && <span className="guided-metric-badge" aria-hidden="true">먼저 확인</span>}
     </button>
   );
 }
 
-export function AccessMetrics({ title, metrics, city, onInspectMetric, includeEvidence = true }: AccessMetricsProps) {
+export function AccessMetrics({ title, metrics, city, onInspectMetric, includeEvidence = true, currentAction = null }: AccessMetricsProps) {
   const slug = headingSlug(title);
   const worst = metrics.worstServedZoneIds.length === 0
     ? '없음'
@@ -69,6 +74,7 @@ export function AccessMetrics({ title, metrics, city, onInspectMetric, includeEv
       value={value}
       detail={detail}
       onInspectMetric={onInspectMetric}
+      guided={currentAction === 'inspect-impact-metrics' && (metricId === 'average' || metricId === 'maximum')}
     />
   );
 

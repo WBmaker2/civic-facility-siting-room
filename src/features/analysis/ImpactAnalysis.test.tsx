@@ -16,6 +16,33 @@ afterEach(() => {
 });
 
 describe('ImpactAnalysis', () => {
+  it('locks resident view until both travel result cards are checked and describes why', () => {
+    const analysis = analysisFor();
+    const { rerender } = render(<ImpactAnalysis city={tinyCity} mission={tinyMission} placements={[placement]} analysis={analysis} onAnalysis={vi.fn()} onInspectMetric={vi.fn()} currentAction="inspect-impact-metrics" />);
+    const resident = screen.getByRole('button', { name: '주민 관점표로 이동' });
+    expect(resident).toBeDisabled();
+    expect(resident).toHaveAttribute('aria-describedby', 'resident-view-help');
+    expect(screen.getByText('두 결과 카드를 눌러 확인하세요.')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /평균 이동 단위/ })[0]).toHaveAttribute('data-guided', 'true');
+    expect(screen.getAllByRole('button', { name: /가장 긴 이동 단위/ })[0]).toHaveAttribute('data-guided', 'true');
+    expect(screen.getAllByRole('button', { name: /평균 이동 단위/ })[0]).toHaveClass('gi-pulse');
+    expect(screen.getAllByRole('button', { name: /가장 긴 이동 단위/ })[0]).toHaveClass('gi-pulse');
+    rerender(<ImpactAnalysis city={tinyCity} mission={tinyMission} placements={[placement]} analysis={analysis} onAnalysis={vi.fn()} onInspectMetric={vi.fn()} canOpenResident currentAction={null} />);
+    expect(screen.getByRole('button', { name: '주민 관점표로 이동' })).toBeEnabled();
+  });
+
+  it('shows one plain empty result for each zero-count constraint', () => {
+    const city = { ...tinyCity, zones: tinyCity.zones.map((zone) => ({ ...zone, existingCoverage: [] })), existingFacilities: [] };
+    const analysis = analysisFor(city);
+    render(<ImpactAnalysis city={city} mission={tinyMission} placements={[placement]} analysis={analysis} onAnalysis={vi.fn()} onInspectMetric={vi.fn()} />);
+    const overlap = screen.getByRole('heading', { name: '기존 시설 중복' }).closest('section');
+    const gap = screen.getByRole('heading', { name: '서비스 공백' }).closest('section');
+    expect(within(overlap!).getByText('없음')).toBeInTheDocument();
+    expect(within(overlap!).queryByText(/없음없음/)).not.toBeInTheDocument();
+    expect(within(gap!).getByText('없음')).toBeInTheDocument();
+    expect(within(gap!).queryByText(/없음없음/)).not.toBeInTheDocument();
+  });
+
   it('shows exact access evidence, named zones, separate constraints, and calculation basis', () => {
     const analysis = analysisFor(tinyCityWithUnreachableZone);
     render(<ImpactAnalysis city={tinyCityWithUnreachableZone} mission={tinyMission} placements={[placement]} analysis={analysis} onAnalysis={vi.fn()} onInspectMetric={vi.fn()} />);

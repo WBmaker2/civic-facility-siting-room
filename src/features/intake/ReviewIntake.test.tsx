@@ -47,12 +47,29 @@ describe('ReviewIntake', () => {
     };
 
     for (const mission of Object.values(MISSIONS)) {
-      const card = screen.getByRole('article', { name: mission.title });
+      const card = screen.getByRole('article', { name: mission.title, hidden: true });
       expect(card).toHaveTextContent(CITIES[mission.cityId].name);
       expect(card).toHaveTextContent(`${mission.budgetTokens}토큰`);
       expect(card).toHaveTextContent(purposes[mission.id]);
       for (const condition of mission.conditions) expect(card).toHaveTextContent(condition.label);
     }
+  });
+
+  it('collapses mission details initially and opens the selected mission while preserving article names', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const initialDetails = screen.getAllByRole('article', { hidden: true }).map((article) => article.closest('details'));
+    expect(initialDetails).toHaveLength(Object.keys(MISSIONS).length);
+    expect(initialDetails.every((details) => details?.open === false)).toBe(true);
+
+    await user.selectOptions(screen.getByRole('combobox', { name: '미션 선택' }), 'combined-review');
+    const selectedArticle = screen.getByRole('article', { name: MISSIONS['combined-review'].title });
+    expect(selectedArticle.closest('details')).toHaveAttribute('open');
+    expect(selectedArticle).toHaveAccessibleName(MISSIONS['combined-review'].title);
+    const closedDetails = screen.getAllByRole('article', { hidden: true })
+      .filter((article) => article !== selectedArticle)
+      .map((article) => article.closest('details'));
+    expect(closedDetails.every((details) => details?.open === false)).toBe(true);
   });
 
   it('uses exact priority names, updates checked state, and resets priority on mission reselection', async () => {

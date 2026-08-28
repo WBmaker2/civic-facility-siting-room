@@ -44,6 +44,41 @@ const makeCombinedProposals = (): ProposalSnapshot[] => {
 };
 
 describe('structured siting opinion', () => {
+  it('hides field alerts on entry, then shows them after submit, with a guided textarea', async () => {
+    const user = userEvent.setup();
+    const proposals = makeProposals();
+    render(<SitingOpinionForm draft={{ ...draftFor(proposals), selectedProposalId: null, evidenceMetricIds: [], underservedZoneId: null, rationale: '', counterargument: '', mitigation: '' }} proposals={proposals} intakePriorityId="access-equity" onSubmit={vi.fn()} />);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getAllByText(/밑줄은 생각을 넣을 자리/).length).toBeGreaterThan(0);
+    expect(screen.getByLabelText('선택안의 근거')).toHaveClass('opinion-textarea');
+    await user.click(screen.getByRole('button', { name: '의견서 작성' }));
+    expect(screen.getAllByRole('alert').length).toBeGreaterThan(0);
+  });
+
+  it('hides invalid ARIA state until an opinion field is touched or submitted', async () => {
+    const proposals = makeProposals();
+    render(<SitingOpinionForm draft={{ ...draftFor(proposals), selectedProposalId: null, evidenceMetricIds: [], underservedZoneId: null, rationale: '', counterargument: '', mitigation: '' }} proposals={proposals} intakePriorityId="access-equity" onSubmit={vi.fn()} />);
+    expect(screen.getByLabelText('선택안의 근거')).not.toHaveAttribute('aria-invalid');
+    expect(screen.getByLabelText('선택안의 근거')).not.toHaveAttribute('aria-describedby');
+    expect(screen.getByLabelText('더 불편을 살필 구역')).not.toHaveAttribute('aria-invalid');
+    expect(screen.getByRole('group', { name: '선택안' })).not.toHaveAttribute('aria-invalid');
+    expect(screen.getByRole('group', { name: '선택안' })).not.toHaveAttribute('aria-describedby');
+  });
+
+  it('keeps priority mismatch hidden until the learner changes the priority', async () => {
+    const user = userEvent.setup();
+    const proposals = makeProposals();
+    render(<SitingOpinionForm draft={{ ...draftFor(proposals), priorityId: 'cost' }} proposals={proposals} intakePriorityId="access-equity" onSubmit={vi.fn()} />);
+    const priorityGroup = screen.getByRole('group', { name: '우선 기준' });
+    expect(priorityGroup).not.toHaveAttribute('aria-invalid');
+    expect(priorityGroup).not.toHaveAttribute('aria-describedby');
+    await user.click(screen.getByRole('radio', { name: '접근성' }));
+    await user.click(screen.getByRole('radio', { name: '비용' }));
+    expect(priorityGroup).toHaveAttribute('aria-invalid', 'true');
+    expect(priorityGroup).toHaveAttribute('aria-describedby', 'opinion-error-priority');
+    expect(screen.getByRole('alert')).toHaveTextContent('심의 접수에서 고른 기준과 같은 기준을 선택해 주세요.');
+  });
+
   it('exposes the five sentence frames and privacy-safe bounded fields without AI claims', () => {
     const proposals = makeProposals();
     render(<SitingOpinionForm draft={{ ...draftFor(proposals), rationale: '', counterargument: '', mitigation: '' }} proposals={proposals} intakePriorityId="access-equity" />);
@@ -124,6 +159,14 @@ describe('structured siting opinion', () => {
     expect(screen.getAllByText(/주민 개인의 잘못이 아닙니다/).length).toBeGreaterThan(0);
   });
 
+  it('announces completion and focuses the summary heading', async () => {
+    const proposals = makeProposals();
+    const headingRef = { current: null } as { current: HTMLHeadingElement | null };
+    render(<OpinionSummary draft={draftFor(proposals)} proposals={proposals} mission={MISSIONS['bookmaru-library']} city={CITIES.mulbit} summaryHeadingRef={headingRef} />);
+    expect(screen.getByRole('status')).toHaveTextContent('의견서가 완성되었습니다');
+    expect(headingRef.current).toBe(screen.getByRole('heading', { name: '완성한 입지 심의 의견서' }));
+  });
+
   it('keeps valid controls native and only submits a valid draft', async () => {
     const user = userEvent.setup();
     const proposals = makeProposals();
@@ -142,7 +185,7 @@ describe('structured siting opinion', () => {
     render(<SitingOpinionForm draft={{ ...draftFor(proposals), priorityId: 'cost' }} proposals={proposals} intakePriorityId="access-equity" onSubmit={onSubmit} />);
     expect(screen.getByRole('button', { name: '의견서 작성' })).toBeDisabled();
     expect(onSubmit).not.toHaveBeenCalled();
-    expect(screen.getByRole('group', { name: '우선 기준' })).toHaveAttribute('aria-describedby', 'opinion-error-priority');
+    expect(screen.getByRole('group', { name: '우선 기준' })).not.toHaveAttribute('aria-describedby');
   });
 
   it('shows combined-review role sharing, phased installation, exact conditions, print, and restart actions', async () => {

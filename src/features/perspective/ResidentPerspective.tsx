@@ -47,6 +47,13 @@ const newBenefit = (city: CityScenario, mission: MissionDefinition, analysis: Pl
     : options.map((placement) => `${facilityLabels[placement.facilityKind]}: ${reachedFor(placement) ? '기준 안' : '기준 밖'}`).join(', ');
 };
 
+const inconvenienceReason = (zoneName: string, travel: number | null, longestTravel: number | null): string => {
+  if (travel === null) return `${zoneName}에서는 도로가 연결되지 않아 도달할 수 없습니다.`;
+  if (longestTravel !== null && travel === longestTravel) return `${zoneName}에서는 가장 긴 ${travel} 이동 단위가 필요해 가장 불리한 구역입니다.`;
+  if (travel <= 1) return `${zoneName}에서는 ${travel} 이동 단위로 비교적 가깝습니다.`;
+  return `${zoneName}에서는 ${travel} 이동 단위가 필요해 이동 부담을 더 살펴야 합니다.`;
+};
+
 export function ResidentPerspective({ city, mission, placements, analysis, selectedZoneId, onSelectZone, canSave, onSaveA, onSaveB, onRevise, hasSavedA = false, hasSavedB = false, savedProposal = null }: ResidentPerspectiveProps) {
   const valid = analysis !== null && validatePlacementAnalysis(city, mission, placements, analysis);
   if (!valid || analysis === null) {
@@ -105,7 +112,7 @@ export function ResidentPerspective({ city, mission, placements, analysis, selec
               <td>{unreachable ? '도달 불가' : '도달 가능'}</td>
               <td>{existingBenefit(city, mission, zone.id)}</td>
               <td>{newBenefit(city, mission, analysis, zone.id)}</td>
-              <td>{unreachable || (travel !== null && travel > 0) ? '도로 연결과 선택한 위치 때문에 이동이 더 어렵습니다' : '현재 배치에서 이동 부담이 가장 낮습니다'}</td>
+              <td>{inconvenienceReason(zone.name, travel, longestTravel)}</td>
               <td>{zone.mobilityBarrier ? '이동 조건을 함께 살펴야 합니다' : '추가 이동 조건 표지 없음'}</td>
             </tr>;
           })}</tbody>

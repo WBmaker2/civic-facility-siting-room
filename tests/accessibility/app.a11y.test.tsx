@@ -63,7 +63,7 @@ async function goToLibraryOpinion(): Promise<void> {
   await user.click(screen.getByRole('button', { name: '자료층 확인' }));
   await assertAccessibleStage('placement');
   await user.click(screen.getByRole('radio', { name: /느린 강변 터.*물빛 B2/ }));
-  await user.click(screen.getByRole('button', { name: '시설 배치' }));
+  await user.click(screen.getByRole('button', { name: /시설 배치/ }));
   await user.click(screen.getByRole('button', { name: '영향 계산' }));
   await assertAccessibleStage('analysis');
   const calculate = screen.getByRole('button', { name: '영향 계산' });
@@ -92,7 +92,7 @@ async function goToLibraryOpinion(): Promise<void> {
   await user.click(screen.getByRole('button', { name: 'A안 저장' }));
   await user.click(screen.getByRole('button', { name: '후보 수정하여 B안 만들기' }));
   await user.click(screen.getByRole('radio', { name: /가운데 광장 터.*물빛 C3/ }));
-  await user.click(screen.getByRole('button', { name: '시설 배치' }));
+  await user.click(screen.getByRole('button', { name: /시설 배치/ }));
   await user.click(screen.getByRole('button', { name: '영향 계산' }));
   await user.click(screen.getByRole('button', { name: '영향 계산' }));
   await user.click(screen.getByRole('button', { name: /평균 이동 단위/ }));

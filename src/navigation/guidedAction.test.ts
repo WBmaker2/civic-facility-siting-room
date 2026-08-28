@@ -46,14 +46,16 @@ describe('getGuidedAction', () => {
     expect(getGuidedAction(stateWith({ stage: 'placement', placements: [{ slotId: 'library-1', facilityKind: 'library', candidateId: 'mulbit-b2' }] }))).toBe('calculate-impact');
   });
 
-  it('returns null for fresh analysis and calculate-impact for a stale deterministic analysis', () => {
+  it('guides a fresh analysis learner to inspect both travel metric cards', () => {
     const mission = MISSIONS['bookmaru-library'];
     const city = CITIES.mulbit;
     const placement = { slotId: 'library-1', facilityKind: 'library' as const, candidateId: 'mulbit-b2' };
     const stalePlacement = { ...placement, candidateId: 'mulbit-c3' };
     const fresh = analyzePlacement(city, mission, [placement]);
     const stale = analyzePlacement(city, mission, [stalePlacement]);
-    expect(getGuidedAction(stateWith({ stage: 'analysis', placements: [placement], analysis: fresh }))).toBeNull();
+    expect(getGuidedAction(stateWith({ stage: 'analysis', placements: [placement], analysis: fresh }))).toBe('inspect-impact-metrics');
+    expect(getGuidedAction(stateWith({ stage: 'analysis', placements: [placement], analysis: fresh, evidence: { reviewedLayerIds: [], inspectedMetricIds: ['average', 'maximum'], selectedUnderservedZoneIds: [], comparedProposalIds: [] } }))).toBeNull();
+    expect(getGuidedAction(stateWith({ stage: 'placement', placements: [placement], analysis: fresh }))).toBeNull();
     expect(getGuidedAction(stateWith({ stage: 'analysis', placements: [placement], analysis: stale }))).toBe('calculate-impact');
   });
 

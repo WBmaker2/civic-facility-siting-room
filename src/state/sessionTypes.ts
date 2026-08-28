@@ -45,6 +45,15 @@ export const STAGE_LABELS: Record<StageId, string> = {
   opinion: '심의 의견서',
 };
 
+export const STAGE_DESCRIPTIONS: Record<StageId, string> = {
+  intake: '미션과 먼저 생각할 기준 고르기',
+  'data-room': '자료를 두 가지 이상 살펴보기',
+  placement: '후보지에 시설 놓기',
+  analysis: '평균과 가장 긴 이동 결과 확인하기',
+  'resident-view': '어느 구역이 더 불편한지 살펴보기',
+  opinion: '근거를 넣어 의견서 완성하기',
+};
+
 export type SessionAction =
   | { type: 'select-mission'; missionId: MissionId }
   | { type: 'select-priority'; priorityId: PriorityId }

@@ -74,6 +74,7 @@ export function CityDataRoom({ currentAction = null }: CityDataRoomProps) {
       </fieldset>
 
       <p role="status" aria-live="polite">5개 중 {reviewedCount}개 확인</p>
+      <p className="candidate-location-help">지도와 표에서 후보지가 있는 칸을 확인하고, 놓을 위치를 선택해 보세요.</p>
       <LayerLegend activeLayerIds={state.activeLayerIds} />
 
       {city && (

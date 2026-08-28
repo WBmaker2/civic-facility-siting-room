@@ -13,9 +13,14 @@ function freezeEntry(entry: UpdateEntry): UpdateEntry {
 
 export const UPDATE_HISTORY: readonly UpdateEntry[] = Object.freeze([
   freezeEntry({
+    date: '2026-08-28',
+    category: '개선',
+    summaries: ['후보지 위치를 더 잘 찾고, 결과 카드를 확인한 뒤 다음 단계로 갈 수 있게 안내를 다듬었습니다.', '의견서 입력 도움말과 완료 알림을 어린이가 이해하기 쉽게 고쳤습니다.'],
+  }),
+  freezeEntry({
     date: '2026-08-27',
     category: '개선',
-    summaries: ['375px 모바일 지도·표 내부 스크롤과 reflow, table-only 시작·범례 이름·의견 입력 44px 터치 영역·자료층 확인 enabled gi-pulse CTA 보강'],
+    summaries: ['작은 화면에서 지도와 표를 편하게 살피고, 의견 입력과 자료 확인 버튼을 더 쉽게 사용할 수 있게 다듬었습니다.'],
   }),
   freezeEntry({
     date: '2026-08-27',

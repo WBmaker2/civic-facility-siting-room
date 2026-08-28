@@ -77,7 +77,7 @@ export function CityDataTable({ city, activeLayerIds, selectedCandidateId, onSel
                           checked={selectedCandidateId === candidate.id}
                           onChange={() => onSelectCandidate(candidate.id)}
                         />
-                        <span>{candidate.name} · 비용 {candidate.costTokens}단계</span>
+                        <span>{candidate.name}{active(activeLayerIds, 'cost') ? ` · 비용 ${candidate.costTokens}단계` : ' · 후보지 있음'}</span>
                       </label>
                     )) : <span>후보지 없음</span>}
                   </td>
@@ -88,6 +88,7 @@ export function CityDataTable({ city, activeLayerIds, selectedCandidateId, onSel
           </tbody>
         </table>
       </div>
+      <p className="table-scroll-hint">모바일에서는 표를 좌우로 밀어 더 보기</p>
       <p className="table-note">후보지 라디오를 선택하면 지도 보기와 같은 후보지 ID가 선택됩니다. 꺼진 자료층은 표에 이유를 표시하며, 다른 층의 정보는 색에 의존하지 않습니다.</p>
     </div>
   );

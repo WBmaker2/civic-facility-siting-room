@@ -1,7 +1,7 @@
 import { ProgressStepper } from '../navigation/ProgressStepper';
 import { SessionProvider, useSession } from '../state/SessionProvider';
 import { STAGE_LABELS } from '../state/sessionTypes';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { MODEL_LIMIT_NOTICE } from '../content/learnerCopy';
 import { ReviewIntake } from '../features/intake/ReviewIntake';
 import { CityDataRoom } from '../features/city-data/CityDataRoom';
@@ -35,6 +35,7 @@ function StagePlaceholder() {
 function SessionShell() {
   const { state, dispatch } = useSession();
   const [opinionSubmitted, setOpinionSubmitted] = useState(false);
+  const summaryHeadingRef = useRef<HTMLHeadingElement | null>(null);
   const currentAction = opinionSubmitted ? null : (state.stage === 'opinion' && selectOpinionReady(state) ? 'write-opinion' : getGuidedAction(state));
   const city = cityForId(state.cityId);
   const mission = missionForId(state.missionId);
@@ -99,7 +100,7 @@ function SessionShell() {
                       proposals={state.proposals}
                       intakePriorityId={state.priorityId}
                       city={city}
-                      onChange={(opinion) => { setOpinionSubmitted(false); dispatch({ type: 'set-opinion', opinion }); }}
+                      onChange={(opinion) => { setOpinionSubmitted(false); summaryHeadingRef.current = null; dispatch({ type: 'set-opinion', opinion }); }}
                       onSubmit={() => setOpinionSubmitted(true)}
                       currentAction={currentAction}
                     />
@@ -110,6 +111,7 @@ function SessionShell() {
                       mission={mission}
                       city={city}
                       onRestart={() => { setOpinionSubmitted(false); dispatch({ type: 'restart-mission' }); }}
+                      summaryHeadingRef={summaryHeadingRef}
                     />}
                   </>
                   : <StagePlaceholder />;

@@ -25,6 +25,12 @@ const snapshot = (label: 'A안' | 'B안', placements = placementsA): ProposalSna
 afterEach(cleanup);
 
 describe('proposal comparison', () => {
+  it('shows a next-step message after only the canonical A proposal is saved', () => {
+    render(<AlternativeComparison city={CITIES.mulbit} mission={mission} first={snapshot('A안')} second={null} comparison={null} />);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByText(/B안을 저장해 주세요/)).toBeInTheDocument();
+  });
+
   it('freezes an immutable, identified snapshot and isolates source mutations', () => {
     const placements = placementsA.map((placement) => ({ ...placement }));
     const analysis = analyzePlacement(CITIES.mulbit, mission, placements);
@@ -94,6 +100,16 @@ describe('proposal comparison', () => {
 });
 
 describe('ResidentPerspective', () => {
+  it('uses different reasons for different travel units and names the worst zone', () => {
+    const city = { ...CITIES.mulbit, zones: CITIES.mulbit.zones.slice(0, 2) };
+    const placements = [placementsA[0]!];
+    const analysis = analyzePlacement(city, mission, placements);
+    render(<ResidentPerspective city={city} mission={mission} placements={placements} analysis={analysis} selectedZoneId={null} onSelectZone={vi.fn()} canSave={false} onSaveA={vi.fn()} onRevise={vi.fn()} />);
+    const rows = screen.getAllByRole('row').slice(1);
+    expect(rows[0]).toHaveTextContent(/가장 불리한 구역/);
+    expect(rows[0]?.querySelectorAll('td')[5]).not.toHaveTextContent(rows[1]?.querySelectorAll('td')[5]?.textContent ?? '');
+  });
+
   it('requires a named zone and asks who is more inconvenienced', async () => {
     const user = userEvent.setup();
     const analysis = analyzePlacement(CITIES.mulbit, mission, placementsA);
@@ -114,17 +130,17 @@ describe('ResidentPerspective', () => {
     const rows = screen.getAllByRole('row');
     expect(rows).toHaveLength(CITIES.mulbit.zones.length + 1);
     expect(rows.slice(1).map((row) => [...row.querySelectorAll('th,td')].map((cell) => cell.textContent))).toEqual([
-      ['느티나무 남쪽 구역', '3 사람 토큰', '4 이동 단위', '도달 가능', '도서관', '도서관: 기준 안', '도로 연결과 선택한 위치 때문에 이동이 더 어렵습니다', '이동 조건을 함께 살펴야 합니다'],
-      ['물빛 가운데 구역', '6 사람 토큰', '2 이동 단위', '도달 가능', '도서관', '도서관: 기준 안', '도로 연결과 선택한 위치 때문에 이동이 더 어렵습니다', '추가 이동 조건 표지 없음'],
-      ['바람 동쪽 구역', '4 사람 토큰', '3 이동 단위', '도달 가능', '도서관', '도서관: 기준 안', '도로 연결과 선택한 위치 때문에 이동이 더 어렵습니다', '추가 이동 조건 표지 없음'],
-      ['작은 언덕 구역', '2 사람 토큰', '3 이동 단위', '도달 가능', '도서관', '도서관: 기준 안', '도로 연결과 선택한 위치 때문에 이동이 더 어렵습니다', '추가 이동 조건 표지 없음'],
-      ['햇살 북쪽 구역', '5 사람 토큰', '2 이동 단위', '도달 가능', '도서관', '도서관: 기준 안', '도로 연결과 선택한 위치 때문에 이동이 더 어렵습니다', '이동 조건을 함께 살펴야 합니다'],
-      ['노을 서쪽 구역', '4 사람 토큰', '3 이동 단위', '도달 가능', '도서관', '도서관: 기준 안', '도로 연결과 선택한 위치 때문에 이동이 더 어렵습니다', '추가 이동 조건 표지 없음'],
+      ['느티나무 남쪽 구역', '3 사람 토큰', '4 이동 단위', '도달 가능', '도서관', '도서관: 기준 안', '느티나무 남쪽 구역에서는 가장 긴 4 이동 단위가 필요해 가장 불리한 구역입니다.', '이동 조건을 함께 살펴야 합니다'],
+      ['물빛 가운데 구역', '6 사람 토큰', '2 이동 단위', '도달 가능', '도서관', '도서관: 기준 안', '물빛 가운데 구역에서는 2 이동 단위가 필요해 이동 부담을 더 살펴야 합니다.', '추가 이동 조건 표지 없음'],
+      ['바람 동쪽 구역', '4 사람 토큰', '3 이동 단위', '도달 가능', '도서관', '도서관: 기준 안', '바람 동쪽 구역에서는 3 이동 단위가 필요해 이동 부담을 더 살펴야 합니다.', '추가 이동 조건 표지 없음'],
+      ['작은 언덕 구역', '2 사람 토큰', '3 이동 단위', '도달 가능', '도서관', '도서관: 기준 안', '작은 언덕 구역에서는 3 이동 단위가 필요해 이동 부담을 더 살펴야 합니다.', '추가 이동 조건 표지 없음'],
+      ['햇살 북쪽 구역', '5 사람 토큰', '2 이동 단위', '도달 가능', '도서관', '도서관: 기준 안', '햇살 북쪽 구역에서는 2 이동 단위가 필요해 이동 부담을 더 살펴야 합니다.', '이동 조건을 함께 살펴야 합니다'],
+      ['노을 서쪽 구역', '4 사람 토큰', '3 이동 단위', '도달 가능', '도서관', '도서관: 기준 안', '노을 서쪽 구역에서는 3 이동 단위가 필요해 이동 부담을 더 살펴야 합니다.', '추가 이동 조건 표지 없음'],
     ]);
     for (const heading of ['사람 토큰', '이동 단위', '도달 여부', '기존 혜택', '새 혜택', '불편 이유', '이동 조건']) {
       expect(screen.getByRole('columnheader', { name: heading })).toBeInTheDocument();
     }
-    expect(screen.getAllByText('도로 연결과 선택한 위치 때문에 이동이 더 어렵습니다').length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/이동 단위가 필요해 이동 부담을 더 살펴야 합니다/).length).toBeGreaterThan(0);
     expect(screen.getAllByText('추가 이동 조건 표지 없음').length).toBeGreaterThan(0);
   });
 

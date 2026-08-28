@@ -13,7 +13,8 @@ afterEach(() => {
 describe('UPDATE_HISTORY', () => {
   it('keeps the exact dated entries newest first and immutable', () => {
     expect(UPDATE_HISTORY).toEqual([
-      { date: '2026-08-27', category: '개선', summaries: ['375px 모바일 지도·표 내부 스크롤과 reflow, table-only 시작·범례 이름·의견 입력 44px 터치 영역·자료층 확인 enabled gi-pulse CTA 보강'] },
+      { date: '2026-08-28', category: '개선', summaries: ['후보지 위치를 더 잘 찾고, 결과 카드를 확인한 뒤 다음 단계로 갈 수 있게 안내를 다듬었습니다.', '의견서 입력 도움말과 완료 알림을 어린이가 이해하기 쉽게 고쳤습니다.'] },
+      { date: '2026-08-27', category: '개선', summaries: ['작은 화면에서 지도와 표를 편하게 살피고, 의견 입력과 자료 확인 버튼을 더 쉽게 사용할 수 있게 다듬었습니다.'] },
       {
         date: '2026-08-27',
         category: '개발',
@@ -25,8 +26,9 @@ describe('UPDATE_HISTORY', () => {
       },
       { date: '2026-08-26', category: '설계', summaries: ['최초 설계 문서 작성'] },
     ] satisfies readonly UpdateEntry[]);
+    expect(UPDATE_HISTORY.flatMap((entry) => entry.summaries).join(' ')).not.toMatch(/reflow|table-only|enabled|gi-pulse CTA/);
     expect(UPDATE_HISTORY.every((entry) => /^\d{4}-\d{2}-\d{2}$/.test(entry.date))).toBe(true);
-    expect(UPDATE_HISTORY[0]?.date).toBe('2026-08-27');
+    expect(UPDATE_HISTORY[0]?.date).toBe('2026-08-28');
     expect((UPDATE_HISTORY[0]?.date ?? '') >= (UPDATE_HISTORY[1]?.date ?? '')).toBe(true);
     expect(Object.isFrozen(UPDATE_HISTORY)).toBe(true);
     expect(UPDATE_HISTORY.every((entry) => Object.isFrozen(entry) && Object.isFrozen(entry.summaries))).toBe(true);

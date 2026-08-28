@@ -101,21 +101,22 @@ function ConstraintSection({
       </section>
       <section className="impact-constraint" aria-labelledby="overlap-heading">
         <h3 id="overlap-heading">기존 시설 중복</h3>
-        <p>{analysis.overlapZoneIds.length === 0 ? '없음' : `${analysis.overlapZoneIds.length}곳: `}<ZoneNames city={city} ids={analysis.overlapZoneIds} /></p>
+        <p>{analysis.overlapZoneIds.length === 0 ? '없음' : <>{analysis.overlapZoneIds.length}곳: <ZoneNames city={city} ids={analysis.overlapZoneIds} /></>}</p>
       </section>
       <section className="impact-constraint" aria-labelledby="gap-heading">
         <h3 id="gap-heading">서비스 공백</h3>
-        <p>{analysis.coverageGapZoneIds.length === 0 ? '없음' : `${analysis.coverageGapZoneIds.length}곳: `}<ZoneNames city={city} ids={analysis.coverageGapZoneIds} /></p>
+        <p>{analysis.coverageGapZoneIds.length === 0 ? '없음' : <>{analysis.coverageGapZoneIds.length}곳: <ZoneNames city={city} ids={analysis.coverageGapZoneIds} /></>}</p>
       </section>
     </div>
   );
 }
 
-function FacilityRoleResults({ city, mission, analysis, onInspectMetric }: {
+function FacilityRoleResults({ city, mission, analysis, onInspectMetric, currentAction }: {
   city: CityScenario;
   mission: MissionDefinition;
   analysis: PlacementAnalysis;
   onInspectMetric: ImpactAnalysisProps['onInspectMetric'];
+  currentAction: GuidedActionId;
 }) {
   if (analysis.placements.length < 2 || mission.id !== 'combined-review') return null;
   return (
@@ -127,25 +128,26 @@ function FacilityRoleResults({ city, mission, analysis, onInspectMetric }: {
         const facilityName = facilityLabels[placement.facilityKind];
         return (
           <div key={placement.slotId} className="impact-role-result">
-            <AccessMetrics title={`${facilityName} 개별 접근`} metrics={metrics} city={city} onInspectMetric={onInspectMetric} includeEvidence={false} />
+            <AccessMetrics title={`${facilityName} 개별 접근`} metrics={metrics} city={city} onInspectMetric={onInspectMetric} includeEvidence={false} currentAction={currentAction} />
             <AccessPathTable city={city} metrics={metrics} caption={`${facilityName} 개별 접근 경로`} />
           </div>
         );
       })}
       <div className="impact-role-result">
-        <AccessMetrics title="가장 가까운 시설 기준" metrics={analysis.nearestFacilityAccess} city={city} onInspectMetric={onInspectMetric} includeEvidence={false} />
+        <AccessMetrics title="가장 가까운 시설 기준" metrics={analysis.nearestFacilityAccess} city={city} onInspectMetric={onInspectMetric} includeEvidence={false} currentAction={currentAction} />
         <AccessPathTable city={city} metrics={analysis.nearestFacilityAccess} caption="가장 가까운 시설 기준 접근 경로" />
       </div>
     </section>
   );
 }
 
-function ResultsPanel({ city, mission, analysis, placements, onInspectMetric }: {
+function ResultsPanel({ city, mission, analysis, placements, onInspectMetric, currentAction }: {
   city: CityScenario;
   mission: MissionDefinition;
   analysis: PlacementAnalysis | null;
   placements: FacilityPlacement[];
   onInspectMetric: ImpactAnalysisProps['onInspectMetric'];
+  currentAction: GuidedActionId;
 }) {
   const displayAnalysis = analysis !== null
     && validatePlacementAnalysis(city, mission, placements, analysis)
@@ -155,10 +157,10 @@ function ResultsPanel({ city, mission, analysis, placements, onInspectMetric }: 
   if (displayAnalysis === null) return <p role="alert">현재 배치와 일치하는 새 분석이 아닙니다. 영향 계산을 다시 눌러 주세요.</p>;
   return (
     <>
-      <AccessMetrics title="전체 주민 접근" metrics={displayAnalysis.nearestFacilityAccess} city={city} onInspectMetric={onInspectMetric} />
-      {displayAnalysis.mobilityBarrierAccess.zoneTravel.length > 0 && <AccessMetrics title="이동이 어려운 구역" metrics={displayAnalysis.mobilityBarrierAccess} city={city} onInspectMetric={onInspectMetric} includeEvidence={false} />}
+      <AccessMetrics title="전체 주민 접근" metrics={displayAnalysis.nearestFacilityAccess} city={city} onInspectMetric={onInspectMetric} currentAction={currentAction} />
+      {displayAnalysis.mobilityBarrierAccess.zoneTravel.length > 0 && <AccessMetrics title="이동이 어려운 구역" metrics={displayAnalysis.mobilityBarrierAccess} city={city} onInspectMetric={onInspectMetric} includeEvidence={false} currentAction={currentAction} />}
       <ConstraintSection analysis={displayAnalysis} city={city} onInspectMetric={onInspectMetric} />
-      <FacilityRoleResults city={city} mission={mission} analysis={displayAnalysis} onInspectMetric={onInspectMetric} />
+      <FacilityRoleResults city={city} mission={mission} analysis={displayAnalysis} onInspectMetric={onInspectMetric} currentAction={currentAction} />
       <CalculationBasis city={city} analysis={displayAnalysis} />
       <p className="model-limit-notice" role="note">{MODEL_LIMIT_NOTICE}</p>
     </>
@@ -198,6 +200,14 @@ export function ImpactAnalysis({ city, mission, placements, analysis, onAnalysis
     );
   }
   const safePlacements = placements;
+  const analysisIsFresh = analysis !== null && validatePlacementAnalysis(city, mission, placements, analysis);
+  const residentViewHelp = analysis === null
+    ? '먼저 영향 계산을 완료하세요.'
+    : !analysisIsFresh
+      ? '현재 배치와 맞는 새 분석을 먼저 계산하세요.'
+      : !canOpenResident
+        ? '두 결과 카드를 눌러 확인하세요.'
+        : '평균과 가장 긴 이동 결과를 확인했습니다.';
 
   const calculate = () => {
     if (!validContext) {
@@ -241,8 +251,10 @@ export function ImpactAnalysis({ city, mission, placements, analysis, onAnalysis
         type="button"
         className="resident-view-action"
         disabled={!canOpenResident || analysis === null || !validatePlacementAnalysis(city, mission, placements, analysis)}
+        aria-describedby="resident-view-help"
         onClick={onOpenResident}
       >주민 관점표로 이동</button>
+      <p id="resident-view-help">{residentViewHelp}</p>
       {error && <p role="alert">{error}</p>}
       <p role="status" aria-live="polite">{announcement}</p>
       <p className="selected-coordinate">현재 선택 좌표: {safePlacements.map((placement) => cityRecord.candidates.find((candidate) => candidate.id === placement.candidateId)?.coordinate.label ?? '선택 없음').join(', ') || '선택 없음'}</p>
@@ -267,12 +279,12 @@ export function ImpactAnalysis({ city, mission, placements, analysis, onAnalysis
         )}
         {isNarrow ? (
           <div id="results-panel" role="tabpanel" aria-labelledby="results-tab" hidden={activeTab !== 'results'}>
-            <ResultsPanel city={cityRecord} mission={missionRecord} analysis={analysis} placements={safePlacements} onInspectMetric={onInspectMetric} />
+            <ResultsPanel city={cityRecord} mission={missionRecord} analysis={analysis} placements={safePlacements} onInspectMetric={onInspectMetric} currentAction={currentAction} />
           </div>
         ) : (
           <section className="impact-results-panel" aria-labelledby="results-heading">
             <h3 id="results-heading">결과표</h3>
-            <ResultsPanel city={cityRecord} mission={missionRecord} analysis={analysis} placements={safePlacements} onInspectMetric={onInspectMetric} />
+            <ResultsPanel city={cityRecord} mission={missionRecord} analysis={analysis} placements={safePlacements} onInspectMetric={onInspectMetric} currentAction={currentAction} />
           </section>
         )}
       </div>

@@ -1,5 +1,5 @@
 .app-shell {
-  padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
 }
 
 .update-history-trigger {
@@ -37,8 +37,12 @@
 .update-history-dialog-content ul { margin-top: var(--space-1); }
 
 @media (max-width: 600px) {
-  .app-shell { padding-bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px)); }
+  .app-shell { padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px)); }
   .update-history-trigger {
+    position: static;
+    display: block;
+    width: fit-content;
+    margin: var(--space-4) auto 0;
     right: max(0.5rem, env(safe-area-inset-right, 0px));
     bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
   }

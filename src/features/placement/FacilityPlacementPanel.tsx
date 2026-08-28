@@ -116,17 +116,22 @@ export function FacilityPlacementPanel({ currentAction = null }: FacilityPlaceme
         {slots.map((slot) => {
           const currentCandidate = slot.candidateId === null ? undefined : city.candidates.find((candidate) => candidate.id === slot.candidateId);
           const slotLabel = labelForSlot(slot);
+          const selectedInstruction = selectedCandidate === undefined
+            ? `${facilityLabels[slot.facilityKind]}을(를) 놓을 후보를 선택하세요.`
+            : `${selectedCandidate.coordinate.label}에 ${facilityDisplayName(mission, slot.facilityKind)} 놓기`;
           return (
             <fieldset className="placement-slot" key={slot.slotId}>
               <legend>{slotLabel}</legend>
               <p>{slot.candidateId && currentCandidate
                 ? `${facilityDisplayName(mission, slot.facilityKind)} 배치: ${currentCandidate.coordinate.label}`
-                : `${facilityLabels[slot.facilityKind]}을(를) 놓을 후보를 선택하세요.`}</p>
+                : selectedInstruction}</p>
               <button
                 type="button"
                 className="placement-action"
                 disabled={!canPlace(slot)}
-                aria-label={mission.id === 'combined-review' ? `${slotLabel} 시설 배치` : undefined}
+                aria-label={selectedCandidate !== undefined
+                  ? `${slotLabel} 시설 배치 — ${selectedInstruction}`
+                  : mission.id === 'combined-review' ? `${slotLabel} 시설 배치` : undefined}
                 aria-describedby={`placement-reason-${slot.slotId}`}
                 onClick={() => {
                   const placement = placementForSlot(slot);

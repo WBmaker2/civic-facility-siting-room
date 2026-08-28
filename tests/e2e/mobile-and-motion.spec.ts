@@ -28,7 +28,7 @@ test('keeps mobile map, table, results, focus, and reduced motion usable', async
   expect(await page.locator('.city-grid').evaluate((element) => ({ scroll: element.scrollWidth, client: element.clientWidth, overflow: getComputedStyle(element).overflowX }))).toMatchObject({ overflow: 'auto' });
   expect(await page.locator('.city-grid').evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
   expect(await page.locator('.city-data-views').evaluate((element) => getComputedStyle(element).overflow)).not.toBe('hidden');
-  await page.getByRole('gridcell', { name: /느린 강변 터/ }).click();
+  await page.getByRole('gridcell', { name: /B2.*후보지 있음/ }).click();
   await expect(page.getByText('현재 선택 좌표: B2')).toBeVisible();
   await page.getByRole('tab', { name: '표 보기' }).click();
   await expect(page.getByRole('tabpanel', { name: '표 보기' })).toBeVisible();
@@ -99,6 +99,13 @@ test('keeps mobile map, table, results, focus, and reduced motion usable', async
 
   const history = page.getByRole('button', { name: '업데이트 내역' });
   await expectVisibleTarget(page, history);
+  const historyBox = await history.boundingBox();
+  const stageBoxes = await page.locator('main [data-stage-id]:visible').evaluateAll((elements) => elements.map((element) => {
+    const box = element.getBoundingClientRect();
+    return { left: box.left, right: box.right, top: box.top, bottom: box.bottom };
+  }));
+  expect(historyBox).not.toBeNull();
+  expect(stageBoxes.some((box) => historyBox!.x < box.right && historyBox!.x + historyBox!.width > box.left && historyBox!.y < box.bottom && historyBox!.y + historyBox!.height > box.top)).toBe(false);
   await history.click();
   const closeHistory = page.getByRole('button', { name: '업데이트 내역 닫기' });
   await expectVisibleTarget(page, closeHistory);

@@ -83,8 +83,10 @@ export function AlternativeComparison({ city, mission, first, second, comparison
       safeCity = CITIES[cityId];
       safeMission = MISSIONS[missionIdDescriptor.value as keyof typeof MISSIONS];
     }
+    const hasOnlyCanonicalFirst = first !== null && second === null && comparison === null;
+    const hasCompleteComparison = first !== null && second !== null && comparison !== null;
     propsValid = safeCity !== null && safeMission !== null && safeMission.cityId === safeCity.id
-      && (first === null) === (second === null) && (first !== null || comparison === null);
+      && (hasOnlyCanonicalFirst || hasCompleteComparison);
   } catch {
     propsValid = false;
   }
@@ -99,6 +101,7 @@ export function AlternativeComparison({ city, mission, first, second, comparison
   } catch {
     return invalidComparison();
   }
+  if (safeFirst !== null && (safeFirst.analysis.cityId !== safeCity.id || safeFirst.analysis.missionId !== safeMission.id)) return invalidComparison();
   if (safeFirst !== null && safeSecond !== null && safeComparison !== null) {
     try {
       if (safeFirst.analysis.cityId !== safeCity.id || safeSecond.analysis.cityId !== safeCity.id

@@ -36,12 +36,19 @@ function renderPlacement(missionId: PlacementMissionId) {
 }
 
 describe('FacilityPlacementPanel', () => {
+  it('names the selected slot with its facility and coordinate', async () => {
+    const user = userEvent.setup();
+    renderPlacement('bookmaru-library');
+    await user.click(await screen.findByRole('radio', { name: /느린 강변 터.*B2/ }));
+    expect(screen.getByRole('button', { name: /B2.*책마루 도서관/ })).toBeInTheDocument();
+  });
+
   it('places a facility through candidate selection and a named button', async () => {
     const user = userEvent.setup();
     renderPlacement('bookmaru-library');
     const candidate = await screen.findByRole('radio', { name: /느린 강변 터.*B2/ });
     await user.click(candidate);
-    await user.click(screen.getByRole('button', { name: '시설 배치' }));
+    await user.click(screen.getByRole('button', { name: /시설 배치/ }));
     expect(await screen.findByText('책마루 도서관 배치: B2')).toBeInTheDocument();
   });
 
@@ -101,11 +108,11 @@ describe('FacilityPlacementPanel', () => {
     expect(await screen.findByText('도서관 1곳')).toBeInTheDocument();
     expect(screen.getByText('건강 도움소 1곳')).toBeInTheDocument();
     await user.click(screen.getByRole('radio', { name: /솔마루 터.*B2/ }));
-    await user.click(screen.getByRole('button', { name: '도서관 1곳 시설 배치' }));
+    await user.click(screen.getByRole('button', { name: /도서관 1곳 시설 배치/ }));
     expect(await screen.findByText('도서관 배치: B2')).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: /솔마루 터.*B2/ })).toBeDisabled();
     await user.click(screen.getByRole('radio', { name: /동쪽 열린 터.*E3/ }));
-    await user.click(screen.getByRole('button', { name: '건강 도움소 1곳 시설 배치' }));
+    await user.click(screen.getByRole('button', { name: /건강 도움소 1곳 시설 배치/ }));
     expect(await screen.findByText('건강 도움소 배치: E3')).toBeInTheDocument();
     expect(screen.getByText('남은 예산 토큰 2')).toBeInTheDocument();
   });
@@ -115,9 +122,9 @@ describe('FacilityPlacementPanel', () => {
     renderPlacement('combined-review');
     await screen.findByRole('radio', { name: /솔마루 터.*B2/ });
     await user.click(screen.getByRole('radio', { name: /솔마루 터.*B2/ }));
-    await user.click(screen.getByRole('button', { name: '도서관 1곳 시설 배치' }));
-    expect(screen.getByRole('button', { name: '도서관 1곳 시설 배치' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: '건강 도움소 1곳 시설 배치' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: /도서관 1곳 시설 배치/ }));
+    expect(screen.getByRole('button', { name: /도서관 1곳 시설 배치/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /건강 도움소 1곳 시설 배치/ })).toBeDisabled();
     expect(screen.getByText(/다른 시설 슬롯에서 이미 사용 중/)).toBeInTheDocument();
   });
 
@@ -126,11 +133,11 @@ describe('FacilityPlacementPanel', () => {
     renderPlacement('combined-review');
     await screen.findByRole('radio', { name: /마루 중앙 터.*D3/ });
     await user.click(screen.getByRole('radio', { name: /마루 중앙 터.*D3/ }));
-    await user.click(screen.getByRole('button', { name: '도서관 1곳 시설 배치' }));
+    await user.click(screen.getByRole('button', { name: /도서관 1곳 시설 배치/ }));
     await user.click(screen.getByRole('radio', { name: /새길 쉼터 터.*C2/ }));
-    await user.click(screen.getByRole('button', { name: '건강 도움소 1곳 시설 배치' }));
+    await user.click(screen.getByRole('button', { name: /건강 도움소 1곳 시설 배치/ }));
     await user.click(screen.getByRole('radio', { name: /넓은 동쪽 터.*E1/ }));
-    expect(screen.getByRole('button', { name: '건강 도움소 1곳 시설 배치' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /건강 도움소 1곳 시설 배치/ })).toBeDisabled();
     expect(screen.getByText(/예산을 .*토큰 초과/)).toBeInTheDocument();
   });
 
@@ -140,7 +147,7 @@ describe('FacilityPlacementPanel', () => {
     const radio = await screen.findByRole('radio', { name: /느린 강변 터.*B2/ });
     radio.focus();
     await user.keyboard(' ');
-    const place = screen.getByRole('button', { name: '시설 배치' });
+    const place = screen.getByRole('button', { name: /시설 배치/ });
     place.focus();
     await user.keyboard('{Enter}');
     expect(await screen.findByText('책마루 도서관 배치: B2')).toBeInTheDocument();
@@ -213,10 +220,10 @@ describe('FacilityPlacementPanel', () => {
     renderPlacement('bookmaru-library');
     await screen.findByRole('radio', { name: /가운데 광장 터.*C3/ });
     await user.click(screen.getByRole('radio', { name: /가운데 광장 터.*C3/ }));
-    await user.click(screen.getByRole('button', { name: '시설 배치' }));
+    await user.click(screen.getByRole('button', { name: /시설 배치/ }));
     expect(screen.getByText('남은 예산 토큰 1')).toBeInTheDocument();
     await user.click(screen.getByRole('radio', { name: /느린 강변 터.*B2/ }));
-    await user.click(screen.getByRole('button', { name: '시설 배치' }));
+    await user.click(screen.getByRole('button', { name: /시설 배치/ }));
     expect(screen.getByText('책마루 도서관 배치: B2')).toBeInTheDocument();
     expect(screen.getByText('남은 예산 토큰 2')).toBeInTheDocument();
   });
@@ -226,8 +233,8 @@ describe('FacilityPlacementPanel', () => {
     renderPlacement('bookmaru-library');
     await screen.findByRole('radio', { name: /느린 강변 터.*B2/ });
     await user.click(screen.getByRole('radio', { name: /느린 강변 터.*B2/ }));
-    await user.click(screen.getByRole('button', { name: '시설 배치' }));
-    expect(screen.getByRole('button', { name: '시설 배치' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: /시설 배치/ }));
+    expect(screen.getByRole('button', { name: /시설 배치/ })).toBeDisabled();
     expect(screen.getByText('현재 배치와 같습니다.')).toBeInTheDocument();
   });
 });

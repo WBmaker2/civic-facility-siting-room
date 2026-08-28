@@ -5,7 +5,7 @@ export type DataLayerId = 'population' | 'roads' | 'risk' | 'cost' | 'existing-f
 export type PriorityId = 'access-equity' | 'safety' | 'cost';
 export type RiskKind = 'water-ponding' | 'steep-slope';
 export type StageId = 'intake' | 'data-room' | 'placement' | 'analysis' | 'resident-view' | 'opinion';
-export type GuidedActionId = 'review-layers' | 'calculate-impact' | 'write-opinion' | null;
+export type GuidedActionId = 'review-layers' | 'calculate-impact' | 'inspect-impact-metrics' | 'write-opinion' | null;
 export type Verdict = 'valid-with-tradeoffs' | 'revise';
 
 export interface GridCoordinate { row: number; column: number; label: string }

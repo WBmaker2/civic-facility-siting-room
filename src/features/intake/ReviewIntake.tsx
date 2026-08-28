@@ -31,34 +31,37 @@ function facilityPurpose(mission: MissionDefinition): string {
   return '도서관과 일상 건강 상담 시설을 함께 검토하는 복합 심의입니다.';
 }
 
-function MissionCard({ mission }: { mission: MissionDefinition }) {
+function MissionCard({ mission, open }: { mission: MissionDefinition; open: boolean }) {
   const city = cityForId(mission.cityId);
   if (city === undefined) return null;
   const isCombined = mission.id === 'combined-review';
   return (
-    <article aria-labelledby={`mission-${mission.id}`}>
-      <h3 id={`mission-${mission.id}`}>{mission.title}</h3>
-      <p>배정 도시: <strong>{city.name}</strong></p>
-      <p>시설 목적: {facilityPurpose(mission)}</p>
-      <p>{isCombined ? '두 시설이 함께 쓰는 공유 예산' : '시설 하나에 쓰는 상대 예산'}: <strong>{mission.budgetTokens}토큰</strong></p>
-      {isCombined && (
-        <div>
-          <h4>복합 심의 역할과 순서</h4>
+    <details open={open}>
+      <summary>{mission.title}</summary>
+      <article aria-labelledby={`mission-${mission.id}`}>
+        <h3 id={`mission-${mission.id}`}>{mission.title}</h3>
+        <p>배정 도시: <strong>{city.name}</strong></p>
+        <p>시설 목적: {facilityPurpose(mission)}</p>
+        <p>{isCombined ? '두 시설이 함께 쓰는 공유 예산' : '시설 하나에 쓰는 상대 예산'}: <strong>{mission.budgetTokens}토큰</strong></p>
+        {isCombined && (
           <div>
-            <p>시설 슬롯 1: 도서관, 시설 슬롯 2: 일상 건강 상담 시설</p>
-            <p>한 예산 안에서 도서관과 건강 도움소의 역할을 나누어 맡습니다.</p>
-            <p>어느 시설을 우선 설치하고 어느 시설을 나중 설치할지 계획합니다.</p>
+            <h4>복합 심의 역할과 순서</h4>
+            <div>
+              <p>시설 슬롯 1: 도서관, 시설 슬롯 2: 일상 건강 상담 시설</p>
+              <p>한 예산 안에서 도서관과 건강 도움소의 역할을 나누어 맡습니다.</p>
+              <p>어느 시설을 우선 설치하고 어느 시설을 나중 설치할지 계획합니다.</p>
+            </div>
           </div>
+        )}
+        <h4>공개 조건</h4>
+        <div>
+          {mission.conditions.map((condition) => (
+            <p key={condition.code}>{condition.label}{condition.required ? ' (필수)' : ' (참고)'}</p>
+          ))}
         </div>
-      )}
-      <h4>공개 조건</h4>
-      <div>
-        {mission.conditions.map((condition) => (
-          <p key={condition.code}>{condition.label}{condition.required ? ' (필수)' : ' (참고)'}</p>
-        ))}
-      </div>
-      <p>{mission.learningPrompt}</p>
-    </article>
+        <p>{mission.learningPrompt}</p>
+      </article>
+    </details>
   );
 }
 
@@ -89,7 +92,7 @@ export function ReviewIntake() {
       </fieldset>
 
       <div aria-label="네 가지 미션 안내">
-        {MISSION_LIST.map((mission) => <MissionCard key={mission.id} mission={mission} />)}
+        {MISSION_LIST.map((mission) => <MissionCard key={mission.id} mission={mission} open={selectedMission?.id === mission.id} />)}
       </div>
 
       {selectedMission && selectedCity && selectedMission.cityId === state.cityId && (

@@ -5,6 +5,7 @@ import { MISSIONS } from '../../domain/missions';
 import { cloneProposalSnapshot } from '../../engine/proposalComparison';
 import { sameSerializableValue } from '../../engine/validatePlacementAnalysis';
 import { cloneOpinionDraft, cloneOpinionProposals, isOpinionTextWithinLimit, validateOpinion } from './validateOpinion';
+import { useEffect, type RefObject } from 'react';
 
 export interface OpinionSummaryProps {
   draft: OpinionDraft;
@@ -14,6 +15,7 @@ export interface OpinionSummaryProps {
   mission?: MissionDefinition;
   city?: CityScenario;
   onRestart?: () => void;
+  summaryHeadingRef?: RefObject<HTMLHeadingElement | null>;
 }
 
 const PRIORITY_LABELS: Record<PriorityId, string> = { 'access-equity': '접근성', safety: '안전', cost: '비용' };
@@ -27,7 +29,8 @@ const metricValue = (proposal: ProposalSnapshot, metric: OpinionDraft['evidenceM
   return `${proposal.analysis.totalCostTokens} 토큰`;
 };
 
-export function OpinionSummary({ draft, proposal: explicitProposal = null, proposals = [], priorityId = null, mission, city, onRestart }: OpinionSummaryProps) {
+export function OpinionSummary({ draft, proposal: explicitProposal = null, proposals = [], priorityId = null, mission, city, onRestart, summaryHeadingRef }: OpinionSummaryProps) {
+  useEffect(() => { summaryHeadingRef?.current?.focus(); }, [summaryHeadingRef]);
   const invalid = (message: string) => <section aria-labelledby="opinion-summary-heading"><h2 id="opinion-summary-heading">입지 심의 의견서</h2><p role="alert">{message}</p></section>;
   const safeDraft = cloneOpinionDraft(draft);
   const safeProposals = cloneOpinionProposals(proposals);
@@ -44,7 +47,8 @@ export function OpinionSummary({ draft, proposal: explicitProposal = null, propo
   const verdict = proposal.assessment.verdict === 'valid-with-tradeoffs' ? '타당안—절충 확인' : '수정 필요';
   return (
     <section aria-labelledby="opinion-summary-heading" className="opinion-summary">
-      <h2 id="opinion-summary-heading">완성한 입지 심의 의견서</h2>
+      <h2 id="opinion-summary-heading" ref={summaryHeadingRef} tabIndex={-1}>완성한 입지 심의 의견서</h2>
+      <p role="status" aria-live="polite">의견서가 완성되었습니다. 살펴본 근거와 다음 보완 방법을 확인하세요.</p>
       <p className="opinion-verdict"><strong>{verdict}</strong></p>
       <h3>선택안</h3>
       <p>{proposal.label}</p>
