@@ -5,6 +5,7 @@ import { ProgressStepper } from './ProgressStepper';
 describe('ProgressStepper', () => {
   it('explains the current, completed, and next steps in child-friendly language', () => {
     render(<ProgressStepper currentStage="analysis" />);
+    expect(screen.getByRole('status')).toHaveTextContent('현재 단계: 영향 분석실');
     expect(document.querySelector('[data-stage="intake"]')).toHaveAttribute('data-state', 'complete');
     expect(document.querySelector('[data-stage="analysis"]')).toHaveAttribute('data-state', 'current');
     expect(document.querySelector('[data-stage="resident-view"]')).toHaveAttribute('data-state', 'next');

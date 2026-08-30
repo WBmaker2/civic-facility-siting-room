@@ -18,6 +18,7 @@ import { OpinionSummary } from '../features/opinion/OpinionSummary';
 import { getGuidedAction } from '../navigation/guidedAction';
 import { GuidedActionButton } from '../navigation/GuidedActionButton';
 import { UpdateHistoryButton } from '../updates/UpdateHistoryButton';
+import { StageFocusRegion } from '../navigation/StageFocusRegion';
 // @ts-expect-error Vite resolves CSS side-effect imports in the test runtime.
 import './app.css';
 
@@ -118,12 +119,17 @@ function SessionShell() {
   const opinionAction = state.proposals.length === 2 && state.stage === 'resident-view';
   return (
     <main className="app-shell">
-      <h1>도시 기능 입지 심의실</h1>
-      <p role="note">{MODEL_LIMIT_NOTICE}</p>
+      <a className="skip-link" href="#learning-stage">본문으로 건너뛰기</a>
+      <header className="app-header">
+        <div className="app-header-copy">
+          <h1>도시 기능 입지 심의실</h1>
+          <p role="note">{MODEL_LIMIT_NOTICE}</p>
+        </div>
+        <div className="app-header-actions"><UpdateHistoryButton /></div>
+      </header>
       <ProgressStepper currentStage={state.stage} />
-      {stage}
+      <StageFocusRegion stage={state.stage}>{stage}</StageFocusRegion>
       {opinionAction && <GuidedActionButton actionId="write-opinion" currentAction={currentAction} disabled={!selectStageGate(state, 'resident-view')} onClick={() => { dispatch({ type: 'set-opinion', opinion: { ...state.opinion, priorityId: state.priorityId } }); dispatch({ type: 'go-to-stage', stage: 'opinion' }); }}>의견서 작성</GuidedActionButton>}
-      <UpdateHistoryButton />
     </main>
   );
 }

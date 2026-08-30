@@ -1,12 +1,9 @@
 .app-shell {
-  padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(var(--space-8) + env(safe-area-inset-bottom, 0px));
 }
 
 .update-history-trigger {
-  position: fixed;
-  right: max(1rem, env(safe-area-inset-right, 0px));
-  bottom: max(1rem, env(safe-area-inset-bottom, 0px));
-  z-index: 20;
+  position: static;
   min-width: 44px;
   min-height: 44px;
   border-color: var(--color-accent);
@@ -14,6 +11,11 @@
   box-shadow: var(--shadow-soft);
   font-size: 0.85rem;
 }
+.update-history-trigger:hover:not(:disabled) {
+  border-color: var(--color-accent-strong);
+  background: var(--color-accent-soft);
+}
+.update-history-trigger:active:not(:disabled) { transform: translateY(1px); }
 
 .update-history-dialog {
   width: min(calc(100vw - 2rem), 36rem);
@@ -39,12 +41,9 @@
 @media (max-width: 600px) {
   .app-shell { padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px)); }
   .update-history-trigger {
-    position: static;
     display: block;
     width: fit-content;
     margin: var(--space-4) auto 0;
-    right: max(0.5rem, env(safe-area-inset-right, 0px));
-    bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
   }
   .update-history-dialog { width: calc(100vw - 1rem); max-width: none; }
 }

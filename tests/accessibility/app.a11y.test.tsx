@@ -67,7 +67,7 @@ async function goToLibraryOpinion(): Promise<void> {
   await user.click(screen.getByRole('button', { name: '영향 계산' }));
   await assertAccessibleStage('analysis');
   const calculate = screen.getByRole('button', { name: '영향 계산' });
-  const status = screen.getByRole('status');
+  const status = screen.getByRole('status', { name: '영향 계산 안내' });
   const liveUpdates: string[] = [];
   const observer = new MutationObserver(() => {
     const message = status.textContent?.trim() ?? '';

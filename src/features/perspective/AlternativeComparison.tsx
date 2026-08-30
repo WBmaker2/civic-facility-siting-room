@@ -63,8 +63,10 @@ function ProposalColumn({ title, proposal, city, mission }: { title: string; pro
         <div><dt>비용</dt><dd>{proposal.analysis.totalCostTokens} 토큰</dd></div>
         <div><dt>기존 시설 중복</dt><dd>{proposal.analysis.overlapZoneIds.length}곳</dd></div>
       </dl>
-      <h4>공개 조건 결과</h4>
-      <ul>{proposal.assessment.conditionResults.map((condition) => <li key={condition.code}>{mission.conditions.find((item) => item.code === condition.code)?.label ?? '공개 조건'}: {condition.passed ? '충족' : '미충족'} — {condition.evidenceText}</li>)}</ul>
+      <details className="proposal-conditions" aria-label={`${title} 공개 조건 결과`}>
+        <summary>공개 조건 결과 보기</summary>
+        <ul>{proposal.assessment.conditionResults.map((condition) => <li key={condition.code}>{mission.conditions.find((item) => item.code === condition.code)?.label ?? '공개 조건'}: {condition.passed ? '충족' : '미충족'} — {condition.evidenceText}</li>)}</ul>
+      </details>
     </section>
   );
 }

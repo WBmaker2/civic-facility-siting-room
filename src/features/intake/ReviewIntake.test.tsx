@@ -26,6 +26,15 @@ describe('ReviewIntake', () => {
     expect(screen.getByRole('button', { name: '도시 자료실로 이동' })).toBeEnabled();
   });
 
+  it('keeps the selected mission conditions available in a compact disclosure', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.selectOptions(screen.getByRole('combobox', { name: '미션 선택' }), 'bookmaru-library');
+    const conditions = screen.getByRole('group', { name: '책마루 도서관을 놓아 보세요 공개 조건' });
+    expect(conditions).toBeInTheDocument();
+    expect(conditions).toHaveTextContent('공개 조건 보기');
+  });
+
   it('shows two slots and shared phased budget guidance for the combined mission', async () => {
     const user = userEvent.setup();
     render(<App />);

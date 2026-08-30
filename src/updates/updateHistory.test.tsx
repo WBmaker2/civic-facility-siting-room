@@ -13,6 +13,8 @@ afterEach(() => {
 describe('UPDATE_HISTORY', () => {
   it('keeps the exact dated entries newest first and immutable', () => {
     expect(UPDATE_HISTORY).toEqual([
+      { date: '2026-08-30', category: '개선', summaries: ['키보드로 처음 들어온 학습자가 본문으로 바로 건너뛸 수 있게 길을 추가했습니다.', '버튼을 가리키거나 누를 때 상태가 보이고, 움직임을 줄인 환경에서도 편안하게 사용할 수 있게 다듬었습니다.'] },
+      { date: '2026-08-29', category: '개선', summaries: ['단계가 바뀌면 새 화면의 제목으로 바로 이동하고, 작은 화면에서도 다음 행동을 쉽게 찾도록 화면 구성을 정리했습니다.', '업데이트 내역 버튼과 비교 자료를 학습 내용을 가리지 않는 자리로 옮겼습니다.'] },
       { date: '2026-08-28', category: '개선', summaries: ['후보지 위치를 더 잘 찾고, 결과 카드를 확인한 뒤 다음 단계로 갈 수 있게 안내를 다듬었습니다.', '의견서 입력 도움말과 완료 알림을 어린이가 이해하기 쉽게 고쳤습니다.'] },
       { date: '2026-08-27', category: '개선', summaries: ['작은 화면에서 지도와 표를 편하게 살피고, 의견 입력과 자료 확인 버튼을 더 쉽게 사용할 수 있게 다듬었습니다.'] },
       {
@@ -28,7 +30,7 @@ describe('UPDATE_HISTORY', () => {
     ] satisfies readonly UpdateEntry[]);
     expect(UPDATE_HISTORY.flatMap((entry) => entry.summaries).join(' ')).not.toMatch(/reflow|table-only|enabled|gi-pulse CTA/);
     expect(UPDATE_HISTORY.every((entry) => /^\d{4}-\d{2}-\d{2}$/.test(entry.date))).toBe(true);
-    expect(UPDATE_HISTORY[0]?.date).toBe('2026-08-28');
+    expect(UPDATE_HISTORY[0]?.date).toBe('2026-08-30');
     expect((UPDATE_HISTORY[0]?.date ?? '') >= (UPDATE_HISTORY[1]?.date ?? '')).toBe(true);
     expect(Object.isFrozen(UPDATE_HISTORY)).toBe(true);
     expect(UPDATE_HISTORY.every((entry) => Object.isFrozen(entry) && Object.isFrozen(entry.summaries))).toBe(true);

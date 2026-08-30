@@ -18,4 +18,11 @@ describe('App', () => {
     expect(screen.getByRole('list').querySelectorAll('button')).toHaveLength(0);
     expect(screen.getByRole('list').querySelector('[aria-current="step"]')).toHaveTextContent('심의 접수');
   });
+
+  it('provides a skip link to the active learning stage', () => {
+    render(<App />);
+    const skipLink = screen.getByRole('link', { name: '본문으로 건너뛰기' });
+    expect(skipLink).toHaveAttribute('href', '#learning-stage');
+    expect(document.getElementById('learning-stage')).toBeInTheDocument();
+  });
 });

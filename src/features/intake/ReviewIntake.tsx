@@ -36,29 +36,32 @@ function MissionCard({ mission, open }: { mission: MissionDefinition; open: bool
   if (city === undefined) return null;
   const isCombined = mission.id === 'combined-review';
   return (
-    <details open={open}>
+    <details className="mission-card" open={open}>
       <summary>{mission.title}</summary>
-      <article aria-labelledby={`mission-${mission.id}`}>
+      <article className="mission-card-content" aria-labelledby={`mission-${mission.id}`}>
         <h3 id={`mission-${mission.id}`}>{mission.title}</h3>
         <p>배정 도시: <strong>{city.name}</strong></p>
         <p>시설 목적: {facilityPurpose(mission)}</p>
         <p>{isCombined ? '두 시설이 함께 쓰는 공유 예산' : '시설 하나에 쓰는 상대 예산'}: <strong>{mission.budgetTokens}토큰</strong></p>
         {isCombined && (
-          <div>
+          <div className="mission-role-note">
             <h4>복합 심의 역할과 순서</h4>
-            <div>
+            <div className="mission-role-note-content">
               <p>시설 슬롯 1: 도서관, 시설 슬롯 2: 일상 건강 상담 시설</p>
               <p>한 예산 안에서 도서관과 건강 도움소의 역할을 나누어 맡습니다.</p>
               <p>어느 시설을 우선 설치하고 어느 시설을 나중 설치할지 계획합니다.</p>
             </div>
           </div>
         )}
-        <h4>공개 조건</h4>
-        <div>
-          {mission.conditions.map((condition) => (
-            <p key={condition.code}>{condition.label}{condition.required ? ' (필수)' : ' (참고)'}</p>
-          ))}
-        </div>
+        <details className="mission-conditions" aria-label={`${mission.title} 공개 조건`}>
+          <summary>공개 조건 보기</summary>
+          <div className="mission-condition-list">
+            <h4>공개 조건</h4>
+            {mission.conditions.map((condition) => (
+              <p key={condition.code}>{condition.label}{condition.required ? ' (필수)' : ' (참고)'}</p>
+            ))}
+          </div>
+        </details>
         <p>{mission.learningPrompt}</p>
       </article>
     </details>
@@ -77,7 +80,7 @@ export function ReviewIntake() {
       <p>권장 시간: <strong>35~45분</strong>. 가상 도시의 자료를 읽고 여러 입지의 장단점을 근거로 비교합니다.</p>
       <p>이 활동의 도시는 <strong>실제 도시가 아닌</strong> 학습용 모형입니다. 숫자는 실제 측정값이 아닙니다.</p>
 
-      <fieldset>
+      <fieldset className="intake-mission-selector">
         <legend>미션 선택</legend>
         <label htmlFor="select-mission">검토할 미션</label>
         <select
@@ -91,24 +94,24 @@ export function ReviewIntake() {
         </select>
       </fieldset>
 
-      <div aria-label="네 가지 미션 안내">
+      <div className="mission-list" aria-label="네 가지 미션 안내">
         {MISSION_LIST.map((mission) => <MissionCard key={mission.id} mission={mission} open={selectedMission?.id === mission.id} />)}
       </div>
 
       {selectedMission && selectedCity && selectedMission.cityId === state.cityId && (
-        <aside aria-label="선택한 미션 요약">
+        <aside className="selected-mission-summary" aria-label="선택한 미션 요약">
           <h3>선택한 미션</h3>
           <p>{selectedMission.title} · 배정 도시: {selectedCity.name}</p>
           <p>{facilityPurpose(selectedMission)}</p>
         </aside>
       )}
 
-      <fieldset id="select-priority">
+      <fieldset id="select-priority" className="priority-fieldset">
         <legend>가장 먼저 살필 기준</legend>
         {PRIORITIES.map((priority) => {
           const descriptionId = `priority-help-${priority.id}`;
           return (
-            <div key={priority.id}>
+            <div className="priority-option" key={priority.id}>
               <label htmlFor={`select-priority-${priority.id}`}>
                 <input
                   id={`select-priority-${priority.id}`}
@@ -127,10 +130,10 @@ export function ReviewIntake() {
         })}
       </fieldset>
 
-      <div aria-labelledby="completion-heading">
+      <div className="completion-criteria" aria-labelledby="completion-heading">
         <h3 id="completion-heading">완료 조건과 증거</h3>
         <p>다음 자료를 남기면 접수가 끝납니다.</p>
-        <div>
+        <div className="completion-criteria-list">
           <p>서로 다른 자료층 두 개 이상을 확인합니다.</p>
           <p>평균 이동 단위와 가장 먼 구역의 결과를 함께 살핍니다.</p>
           <p>누가 더 불편해지는지 구역 자료로 찾습니다.</p>
@@ -138,8 +141,10 @@ export function ReviewIntake() {
         </div>
       </div>
 
-      <p>{SOCIAL_SAFETY_NOTICE}</p>
-      <p>{PRIVACY_NOTICE}</p>
+      <div className="intake-safety-notices">
+        <p>{SOCIAL_SAFETY_NOTICE}</p>
+        <p>{PRIVACY_NOTICE}</p>
+      </div>
       <button type="button" disabled={!canEnterDataRoom} onClick={() => dispatch({ type: 'go-to-stage', stage: 'data-room' })}>
         도시 자료실로 이동
       </button>

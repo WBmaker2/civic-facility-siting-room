@@ -82,16 +82,21 @@ export function AccessMetrics({ title, metrics, city, onInspectMetric, includeEv
     <section className="impact-access-metrics" aria-labelledby={`access-${slug}-heading`}>
       <h3 id={`access-${slug}-heading`}>{title}</h3>
       {includeEvidence && (
-        <div className="impact-metric-cards" aria-label={`${title} 핵심 결과`}>
+        <div className="impact-metric-cards metric-summary" aria-label={`${title} 핵심 결과`}>
           {card('average', units(metrics.populationWeightedAverage, true), denominator)}
           {card('maximum', units(metrics.longestReachableTravel), `가장 불리한 도달 가능 구역: ${worst}`)}
           {card('unreachable', `${metrics.unreachableZoneIds.length}개 구역`, `별도 표시: ${unreachable}`)}
         </div>
       )}
-      <p><strong>평균 이동 단위:</strong> {units(metrics.populationWeightedAverage, true)} · <strong>가장 긴 이동 단위:</strong> {units(metrics.longestReachableTravel)}</p>
-      <p><strong>사람 토큰 분모:</strong> {denominator}</p>
-      <p><strong>가장 불리한 구역:</strong> {worst}</p>
-      <p><strong>도달 불가 구역:</strong> {metrics.unreachableZoneIds.length}개{metrics.unreachableZoneIds.length > 0 ? ` — ${unreachable}` : ' (없음)'}</p>
+      <details className="metric-details" aria-label={`${title} 자세히 보기`}>
+        <summary>이 결과를 자세히 읽기</summary>
+        <div className="metric-details-content">
+          <p><strong>평균 이동 단위:</strong> {units(metrics.populationWeightedAverage, true)} · <strong>가장 긴 이동 단위:</strong> {units(metrics.longestReachableTravel)}</p>
+          <p><strong>사람 토큰 분모:</strong> {denominator}</p>
+          <p><strong>가장 불리한 구역:</strong> {worst}</p>
+          <p><strong>도달 불가 구역:</strong> {metrics.unreachableZoneIds.length}개{metrics.unreachableZoneIds.length > 0 ? ` — ${unreachable}` : ' (없음)'}</p>
+        </div>
+      </details>
       {metrics.unreachableZoneIds.length > 0 && (
         <p className="impact-high-visibility" role="note">도달 불가 구역은 평균에서 숨기지 않고 따로 표시했습니다</p>
       )}

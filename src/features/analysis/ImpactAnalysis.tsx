@@ -256,7 +256,7 @@ export function ImpactAnalysis({ city, mission, placements, analysis, onAnalysis
       >주민 관점표로 이동</button>
       <p id="resident-view-help">{residentViewHelp}</p>
       {error && <p role="alert">{error}</p>}
-      <p role="status" aria-live="polite">{announcement}</p>
+      <p role="status" aria-live="polite" aria-label={announcement ? `영향 계산 안내: ${announcement}` : '영향 계산 안내'}>{announcement}</p>
       <p className="selected-coordinate">현재 선택 좌표: {safePlacements.map((placement) => cityRecord.candidates.find((candidate) => candidate.id === placement.candidateId)?.coordinate.label ?? '선택 없음').join(', ') || '선택 없음'}</p>
 
       {isNarrow && (

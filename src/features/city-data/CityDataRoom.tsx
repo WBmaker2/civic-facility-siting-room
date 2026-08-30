@@ -56,7 +56,7 @@ export function CityDataRoom({ currentAction = null }: CityDataRoomProps) {
       <p>{city ? `${city.name}의 가상 자료를 확인합니다.` : '먼저 미션을 선택해 배정 도시를 정합니다.'}</p>
       <p>이 자료는 실제 도시가 아닌 가상 격자 모형이며, 색 하나만으로 의미를 판단하지 않습니다.</p>
 
-      <fieldset>
+      <fieldset className="data-layer-selector">
         <legend>확인할 자료층</legend>
         {LAYERS.map((layer) => (
           <label key={layer.id} htmlFor={`layer-${layer.id}`}>
@@ -73,8 +73,8 @@ export function CityDataRoom({ currentAction = null }: CityDataRoomProps) {
         ))}
       </fieldset>
 
-      <p role="status" aria-live="polite">5개 중 {reviewedCount}개 확인</p>
-      <p className="candidate-location-help">지도와 표에서 후보지가 있는 칸을 확인하고, 놓을 위치를 선택해 보세요.</p>
+      <p role="status" aria-live="polite" aria-label={`자료층 확인 상태: 5개 중 ${reviewedCount}개 확인`}>5개 중 {reviewedCount}개 확인</p>
+      <p className="candidate-location-help" id="candidate-location-help">지도와 표에서 후보지가 있는 칸을 확인하고, 놓을 위치를 선택해 보세요.</p>
       <LayerLegend activeLayerIds={state.activeLayerIds} />
 
       {city && (

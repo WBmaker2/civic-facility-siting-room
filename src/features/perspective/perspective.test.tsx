@@ -120,6 +120,8 @@ describe('ResidentPerspective', () => {
     expect(screen.getByRole('button', { name: 'A안 저장' })).toBeDisabled();
     expect(screen.getByText('사람 토큰')).toBeInTheDocument();
     expect(screen.getAllByText('이동 조건을 함께 살펴야 합니다').length).toBeGreaterThan(0);
+    expect(screen.getByRole('table', { name: '구역별 주민 관점 비교' })).toHaveAttribute('aria-describedby', 'perspective-table-help');
+    expect(document.querySelector('.perspective-table-wrap')).toHaveAttribute('data-sticky-column', 'true');
     await user.click(screen.getByRole('radio', { name: /느티나무 남쪽 구역/ }));
     expect(onSelect).toHaveBeenCalledWith('mulbit-south');
   });
@@ -174,6 +176,8 @@ describe('ResidentPerspective', () => {
     }
     render(<AlternativeComparison city={CITIES.mulbit} mission={mission} first={first} second={second} comparison={comparison} />);
     expect(screen.getByRole('heading', { name: 'A안과 B안 비교' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'A안 공개 조건 결과' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'B안 공개 조건 결과' })).toBeInTheDocument();
     expect(screen.getAllByText(/예산 토큰 3개 안에 놓기/).length).toBeGreaterThan(0);
     expect(screen.getByText('도서관: 느린 강변 터 (B2)')).toBeInTheDocument();
     expect(screen.getByText('도서관: 푸른길 터 (D3)')).toBeInTheDocument();

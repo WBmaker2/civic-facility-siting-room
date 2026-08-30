@@ -39,7 +39,7 @@ function riskText(data: CoordinateData): string {
 export function CityDataTable({ city, activeLayerIds, selectedCandidateId, onSelectCandidate }: CityDataTableProps) {
   const coordinates = coordinateRows(city);
   return (
-    <div className="city-table-wrap">
+    <div className="city-table-wrap" aria-describedby="city-table-scroll-hint">
       <div className="city-table-scroll">
         <table className="city-data-table">
           <caption>{city.name} 도시 자료 비교표 — 지도와 같은 가상 자료를 좌표별로 읽습니다.</caption>
@@ -88,7 +88,7 @@ export function CityDataTable({ city, activeLayerIds, selectedCandidateId, onSel
           </tbody>
         </table>
       </div>
-      <p className="table-scroll-hint">모바일에서는 표를 좌우로 밀어 더 보기</p>
+      <p className="table-scroll-hint" id="city-table-scroll-hint">모바일에서는 표를 좌우로 밀어 더 보기</p>
       <p className="table-note">후보지 라디오를 선택하면 지도 보기와 같은 후보지 ID가 선택됩니다. 꺼진 자료층은 표에 이유를 표시하며, 다른 층의 정보는 색에 의존하지 않습니다.</p>
     </div>
   );

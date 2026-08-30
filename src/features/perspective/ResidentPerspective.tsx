@@ -98,8 +98,9 @@ export function ResidentPerspective({ city, mission, placements, analysis, selec
           ))}
         </div>
       </fieldset>
-      <div className="perspective-table-wrap">
-        <table className="perspective-table">
+      <p id="perspective-table-help" className="table-scroll-hint">모바일에서는 표를 좌우로 밀어 모든 열을 살펴볼 수 있습니다. 첫 번째 구역 열은 화면에 붙어 있습니다.</p>
+      <div className="perspective-table-wrap" data-sticky-column="true">
+        <table className="perspective-table" aria-describedby="perspective-table-help">
           <caption>구역별 주민 관점 비교</caption>
           <thead><tr><th scope="col">구역</th><th scope="col">사람 토큰</th><th scope="col">이동 단위</th><th scope="col">도달 여부</th><th scope="col">기존 혜택</th><th scope="col">새 혜택</th><th scope="col">불편 이유</th><th scope="col">이동 조건</th></tr></thead>
           <tbody>{rows.map((zone) => {

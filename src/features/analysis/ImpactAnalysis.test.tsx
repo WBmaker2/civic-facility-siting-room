@@ -49,6 +49,7 @@ describe('ImpactAnalysis', () => {
     expect(screen.getByRole('heading', { name: '영향 분석실' })).toBeInTheDocument();
     const overall = screen.getByRole('heading', { name: '전체 주민 접근' }).closest('section');
     expect(overall).not.toBeNull();
+    expect(within(overall!).getByRole('group', { name: '전체 주민 접근 자세히 보기' })).toBeInTheDocument();
     expect(within(overall!).getByRole('button', { name: '평균 이동 단위: 2.8 가상 단위' })).toBeInTheDocument();
     expect(within(overall!).getByRole('button', { name: '가장 긴 이동 단위: 3 가상 단위' })).toBeInTheDocument();
     expect(within(overall!).getByText('사람 토큰 분모:').parentElement).toHaveTextContent('도달 4 / 전체 5명 토큰');

@@ -71,7 +71,7 @@ describe('CityDataRoom', () => {
     await user.click(screen.getByRole('checkbox', { name: /인구/ }));
     await user.click(screen.getByRole('checkbox', { name: /도로·이동 단위/ }));
     expect(confirm).toBeEnabled();
-    expect(screen.getByRole('status')).toHaveTextContent('5개 중 2개 확인');
+    expect(screen.getByRole('status', { name: /자료층 확인 상태/ })).toHaveTextContent('5개 중 2개 확인');
   });
 
   it('keeps reviewed evidence after a layer is unchecked and exposes legend meaning', async () => {
@@ -85,7 +85,7 @@ describe('CityDataRoom', () => {
     await user.click(population);
 
     expect(population).not.toBeChecked();
-    expect(screen.getByRole('status')).toHaveTextContent('5개 중 2개 확인');
+    expect(screen.getByRole('status', { name: /자료층 확인 상태/ })).toHaveTextContent('5개 중 2개 확인');
     expect(screen.getByText(/사람 토큰/)).toBeInTheDocument();
     expect(screen.getByText(/연결선/)).toBeInTheDocument();
   });
@@ -100,7 +100,7 @@ describe('CityDataRoom', () => {
       await user.click(checkbox);
       expect(checkbox).toBeChecked();
     }
-    expect(screen.getByRole('status')).toHaveTextContent('5개 중 5개 확인');
+    expect(screen.getByRole('status', { name: /자료층 확인 상태/ })).toHaveTextContent('5개 중 5개 확인');
     expect(screen.getByRole('button', { name: '자료층 확인' })).toBeEnabled();
     expect(document.querySelectorAll('[data-layer-id]')).toHaveLength(5);
 
@@ -108,7 +108,7 @@ describe('CityDataRoom', () => {
       await user.click(checkbox);
       expect(checkbox).not.toBeChecked();
     }
-    expect(screen.getByRole('status')).toHaveTextContent('5개 중 5개 확인');
+    expect(screen.getByRole('status', { name: /자료층 확인 상태/ })).toHaveTextContent('5개 중 5개 확인');
     expect(screen.getByRole('button', { name: '자료층 확인' })).toBeEnabled();
     expect(document.querySelectorAll('[data-layer-id]')).toHaveLength(0);
   });

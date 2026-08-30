@@ -17,8 +17,8 @@
 }
 
 @keyframes gi-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgb(180 72 0 / 0%); outline-color: rgb(180 72 0 / 35%); }
-  50% { box-shadow: 0 0 0 0.55rem rgb(180 72 0 / 20%); outline: 3px solid rgb(180 72 0 / 45%); outline-offset: 3px; }
+  0%, 100% { box-shadow: 0 0 0 0 rgb(163 79 0 / 0%); outline-color: rgb(163 79 0 / 35%); }
+  50% { box-shadow: 0 0 0 0.55rem rgb(163 79 0 / 20%); outline: 3px solid rgb(163 79 0 / 45%); outline-offset: 3px; }
 }
 
 .facility-range {
