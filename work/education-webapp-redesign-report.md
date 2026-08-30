@@ -53,7 +53,7 @@ Vitest 실행 중 jsdom의 `HTMLCanvasElement.getContext()` 미구현 경고가 
 
 ## 남은 확인·실행 선택지
 
-- 현재 변경은 로컬 작업 트리에만 있습니다. 사용자가 별도로 승인하기 전까지 커밋·푸시·GitHub Pages 배포·HVC 등록은 실행하지 않았습니다.
+- 2026-08-29 보고 시점에는 변경이 로컬 작업 트리에만 있었으며, 그때까지 커밋·푸시·GitHub Pages 배포·HVC 등록은 실행하지 않았습니다.
 - 배포를 요청할 경우 먼저 변경 파일과 전체 검증 결과를 확인한 뒤, 저장소의 기존 release 절차를 따라 커밋·푸시·Pages 공개 URL의 실제 학습 경로를 다시 검증해야 합니다.
 
 ## 2026-08-30 재실행 결과
@@ -92,10 +92,18 @@ Vitest·axe 실행 중 jsdom의 `HTMLCanvasElement.getContext()` 미구현 경�
 
 - 초기 감사에서 기록한 `favicon.ico` 404는 별도 자산 승인 없이 자동 생성하지 않아 관찰 항목으로 남겼습니다.
 - VoiceOver/TalkBack 실행과 사람의 보조공학 승인은 이 작업 범위에서 제외했습니다.
-- 현재 변경은 커밋되지 않은 로컬 작업 트리에 있습니다. 이번 실행에서는 GitHub 저장소, 커밋·푸시, Pages 배포, HVC 등록을 시작하지 않았습니다.
+- 위 회귀 보강까지는 커밋되지 않은 로컬 작업 트리였으며, 아래 릴리스 실행에서 커밋·푸시·Pages 배포를 완료했습니다. HVC 등록은 실행하지 않았습니다.
 
 ### 2026-08-30 릴리스 전 회귀 보강
 
 - 업데이트 내역 버튼의 컴포넌트 전용 기본 배경이 전역 hover 규칙을 덮어쓰던 문제를 확인했습니다. `src/app/app.css`에 전용 hover·pressed 규칙을 추가하고 `src/styles/ui-contract.test.ts`에 회귀 계약을 보강했습니다.
 - 180ms 색상 전환 중간값을 읽던 E2E 타이밍 경합을 `expect.poll`로 안정화했습니다. 단독 리디자인 E2E 4개와 전체 E2E 11개가 모두 통과했습니다.
 - 릴리스 직전 재검증: `npm run check` (28개 파일·247개 테스트, 빌드 포함), `npm run test:a11y` (2개, axe serious/critical 0), `npm run test:e2e` (11개), `git diff --check` 통과.
+
+### 2026-08-30 커밋·푸시·GitHub Pages 배포
+
+- 커밋: `92f7bd5` (`feat: redesign civic facility siting room`)
+- `main` 브랜치를 `origin/main`에 푸시했습니다.
+- [GitHub Actions Pages 실행 33292453745](https://github.com/WBmaker2/civic-facility-siting-room/actions/runs/33292453745)의 build·deploy job이 모두 성공했습니다. Node.js 20 deprecation 안내만 annotation으로 남았습니다.
+- [공개 학습 앱](https://wbmaker2.github.io/civic-facility-siting-room/)은 HTTP 200, 제목 `도시 기능 입지 심의실`, 빌드 JS/CSS 자산 HTTP 200으로 확인했습니다.
+- 공개 브라우저 전체 흐름은 이 환경의 Chromium이 macOS `MachPortRendezvous` 권한 오류로 종료되어 실행하지 못했습니다. 동일 학습 흐름은 로컬 Playwright E2E 11개가 통과했으며, 공개 URL의 HTML·자산 확인 결과와 구분해 기록합니다.
