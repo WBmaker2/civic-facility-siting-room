@@ -159,6 +159,15 @@ describe('structured siting opinion', () => {
     expect(screen.getAllByText(/주민 개인의 잘못이 아닙니다/).length).toBeGreaterThan(0);
   });
 
+  it('shows a consistent valid verdict and a next learning action after comparing two passing proposals', () => {
+    const proposals = makeProposals();
+    render(<OpinionSummary draft={draftFor(proposals)} proposals={proposals} mission={MISSIONS['bookmaru-library']} city={CITIES.mulbit} />);
+    expect(screen.getByText('타당안—절충 확인')).toBeInTheDocument();
+    expect(screen.queryByText('수정 필요')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '다음 학습 행동' })).toBeInTheDocument();
+    expect(screen.getByText(/친구에게 선택한 기준, 가장 불편한 구역, 보완 방법을 차례로 설명해 보세요/)).toBeInTheDocument();
+  });
+
   it('announces completion and focuses the summary heading', async () => {
     const proposals = makeProposals();
     const headingRef = { current: null } as { current: HTMLHeadingElement | null };

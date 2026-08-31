@@ -25,6 +25,12 @@ const snapshot = (label: 'A안' | 'B안', placements = placementsA): ProposalSna
 afterEach(cleanup);
 
 describe('proposal comparison', () => {
+  it('treats the empty proposal state as a normal starting instruction', () => {
+    render(<AlternativeComparison city={CITIES.mulbit} mission={mission} first={null} second={null} comparison={null} />);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByText(/A안은 아직 저장하지 않았습니다/)).toBeInTheDocument();
+  });
+
   it('shows a next-step message after only the canonical A proposal is saved', () => {
     render(<AlternativeComparison city={CITIES.mulbit} mission={mission} first={snapshot('A안')} second={null} comparison={null} />);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();

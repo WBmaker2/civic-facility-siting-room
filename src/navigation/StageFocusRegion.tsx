@@ -33,5 +33,5 @@ export function StageFocusRegion({ stage, children }: StageFocusRegionProps) {
     }
   }, [reducedMotion, stage]);
 
-  return <div id="learning-stage" ref={regionRef} className="stage-focus-region" data-stage-focus={stage}>{children}</div>;
+  return <div id="learning-stage" ref={regionRef} className="stage-focus-region" data-stage-focus={stage} tabIndex={-1}>{children}</div>;
 }

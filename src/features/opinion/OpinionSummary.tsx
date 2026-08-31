@@ -44,12 +44,16 @@ export function OpinionSummary({ draft, proposal: explicitProposal = null, propo
   const effectivePriority = priorityId ?? safeDraft.priorityId;
   if ((explicitProposal !== null && safeExplicit === null) || proposal === null || safeDraft.selectedProposalId !== proposal.id || effectivePriority === null || !PRIORITY_LABELS[effectivePriority] || (priorityId !== null && safeDraft.priorityId !== priorityId) || proposal.analysis.cityId !== canonicalCity.id || proposal.analysis.missionId !== canonicalMission.id) return invalid('선택안과 우선 기준을 확인할 수 없습니다.');
   const zoneName = canonicalCity.zones.find((zone: CityScenario['zones'][number]) => zone.id === safeDraft.underservedZoneId)?.name ?? safeDraft.underservedZoneId ?? '선택한 구역';
-  const verdict = proposal.assessment.verdict === 'valid-with-tradeoffs' ? '타당안—절충 확인' : '수정 필요';
+  const canPresentAsTradeoff = safeProposals.length === 2
+    && proposal.assessment.priorityConsistent
+    && proposal.assessment.conditionResults.every((condition) => condition.passed);
+  const verdict = canPresentAsTradeoff || proposal.assessment.verdict === 'valid-with-tradeoffs' ? '타당안—절충 확인' : '수정 필요';
   return (
     <section aria-labelledby="opinion-summary-heading" className="opinion-summary">
       <h2 id="opinion-summary-heading" ref={summaryHeadingRef} tabIndex={-1}>완성한 입지 심의 의견서</h2>
       <p role="status" aria-live="polite">의견서가 완성되었습니다. 살펴본 근거와 다음 보완 방법을 확인하세요.</p>
       <p className="opinion-verdict"><strong>{verdict}</strong></p>
+      {verdict === '수정 필요' && <p className="opinion-verdict-help" role="note">미충족 조건을 다시 보고 다른 후보의 장점을 보완해 보세요.</p>}
       <h3>선택안</h3>
       <p>{proposal.label}</p>
       <h3>우선 기준</h3>
@@ -67,6 +71,10 @@ export function OpinionSummary({ draft, proposal: explicitProposal = null, propo
       <p>{safeDraft.counterargument}</p>
       <h3>보완 방법</h3>
       <p>{safeDraft.mitigation}</p>
+      <section className="next-learning-action" aria-labelledby="next-learning-action-heading">
+        <h3 id="next-learning-action-heading">다음 학습 행동</h3>
+        <p>친구에게 선택한 기준, 가장 불편한 구역, 보완 방법을 차례로 설명해 보세요.</p>
+      </section>
       {canonicalMission.id === 'combined-review' && <section aria-labelledby="combined-opinion-heading">
         <h3 id="combined-opinion-heading">복합 심의 역할 분담</h3>
         <p>도서관은 책과 배움 자료를, 건강 도움소는 일상 건강 상담을 맡도록 역할을 나눕니다.</p>

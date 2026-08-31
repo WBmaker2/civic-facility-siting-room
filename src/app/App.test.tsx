@@ -23,6 +23,6 @@ describe('App', () => {
     render(<App />);
     const skipLink = screen.getByRole('link', { name: '본문으로 건너뛰기' });
     expect(skipLink).toHaveAttribute('href', '#learning-stage');
-    expect(document.getElementById('learning-stage')).toBeInTheDocument();
+    expect(document.getElementById('learning-stage')).toHaveAttribute('tabindex', '-1');
   });
 });

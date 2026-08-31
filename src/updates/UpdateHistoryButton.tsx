@@ -89,8 +89,10 @@ export function UpdateHistoryButton(): JSX.Element {
         onKeyDown={handleKeyDown}
       >
         <div className="update-history-dialog-content">
-          <h2 id={headingId}>업데이트 내역</h2>
-          <button ref={closeRef} type="button" onClick={closeHistory}>업데이트 내역 닫기</button>
+          <div className="update-history-dialog-header">
+            <h2 id={headingId}>업데이트 내역</h2>
+            <button ref={closeRef} type="button" onClick={closeHistory}>업데이트 내역 닫기</button>
+          </div>
           <ol>
             {UPDATE_HISTORY.map((entry) => (
               <li key={`${entry.date}-${entry.category}`}>

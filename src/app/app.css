@@ -31,9 +31,16 @@
 
 .update-history-dialog::backdrop { background: rgb(38 50 56 / 45%); }
 .update-history-dialog-content { overflow-y: auto; max-height: min(80vh, 42rem); padding: var(--space-4); }
-.update-history-dialog-content h2 { margin-top: 0; }
-.update-history-dialog-content > button { float: right; margin-top: -3.25rem; }
-.update-history-dialog-content ol { clear: both; padding-left: 1.5rem; }
+.update-history-dialog-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.update-history-dialog-header h2 { margin: 0; }
+.update-history-dialog-header button { margin: 0; justify-self: end; }
+.update-history-dialog-content ol { padding-left: 1.5rem; }
 .update-history-dialog-content ol > li { margin: var(--space-4) 0; }
 .update-history-dialog-content p { margin-bottom: var(--space-1); }
 .update-history-dialog-content ul { margin-top: var(--space-1); }
@@ -46,4 +53,6 @@
     margin: var(--space-4) auto 0;
   }
   .update-history-dialog { width: calc(100vw - 1rem); max-width: none; }
+  .update-history-dialog-header { grid-template-columns: 1fr; }
+  .update-history-dialog-header button { justify-self: start; }
 }

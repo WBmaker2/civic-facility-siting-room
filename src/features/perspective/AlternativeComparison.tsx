@@ -85,10 +85,11 @@ export function AlternativeComparison({ city, mission, first, second, comparison
       safeCity = CITIES[cityId];
       safeMission = MISSIONS[missionIdDescriptor.value as keyof typeof MISSIONS];
     }
+    const hasNoProposals = first === null && second === null && comparison === null;
     const hasOnlyCanonicalFirst = first !== null && second === null && comparison === null;
     const hasCompleteComparison = first !== null && second !== null && comparison !== null;
     propsValid = safeCity !== null && safeMission !== null && safeMission.cityId === safeCity.id
-      && (hasOnlyCanonicalFirst || hasCompleteComparison);
+      && (hasNoProposals || hasOnlyCanonicalFirst || hasCompleteComparison);
   } catch {
     propsValid = false;
   }
@@ -117,7 +118,9 @@ export function AlternativeComparison({ city, mission, first, second, comparison
     <section aria-labelledby="alternative-comparison-heading" className="alternative-comparison">
       <h2 id="alternative-comparison-heading">A안과 B안 비교</h2>
       {safeFirst === null || safeSecond === null || safeComparison === null ? (
-        <p>먼저 주민 관점표에서 A안을 저장한 뒤, 후보를 바꾸어 새로 분석하고 B안을 저장해 주세요. 두 안의 장단점을 함께 살펴봅니다.</p>
+        <p>{safeFirst === null
+          ? 'A안은 아직 저장하지 않았습니다. 먼저 표에서 불편한 구역을 고르고 A안을 저장해 보세요.'
+          : 'A안을 저장했습니다. 후보를 바꾸어 새로 분석하고 B안을 저장해 주세요. 두 안의 장단점을 함께 살펴봅니다.'}</p>
       ) : (
         <>
           <div className="proposal-columns">

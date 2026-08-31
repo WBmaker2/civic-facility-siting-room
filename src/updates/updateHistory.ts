@@ -13,6 +13,11 @@ function freezeEntry(entry: UpdateEntry): UpdateEntry {
 
 export const UPDATE_HISTORY: readonly UpdateEntry[] = Object.freeze([
   freezeEntry({
+    date: '2026-08-31',
+    category: '개선',
+    summaries: ['정상적인 비교 시작 화면과 완료 결과가 헷갈리지 않도록 안내를 고쳤습니다.', '작은 화면의 업데이트 내역 창에서도 제목과 닫기 버튼이 겹치지 않게 다듬었습니다.'],
+  }),
+  freezeEntry({
     date: '2026-08-30',
     category: '개선',
     summaries: ['키보드로 처음 들어온 학습자가 본문으로 바로 건너뛸 수 있게 길을 추가했습니다.', '버튼을 가리키거나 누를 때 상태가 보이고, 움직임을 줄인 환경에서도 편안하게 사용할 수 있게 다듬었습니다.'],

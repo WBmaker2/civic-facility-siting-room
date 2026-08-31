@@ -1,0 +1,60 @@
+{
+  "generatedAt": "2026-08-31T00:37:01+00:00",
+  "skillName": "ui-ux-pro-max",
+  "skillFile": "/Users/kimhongnyeon/.codex/skills/ui-ux-pro-max/SKILL.md",
+  "searchScript": "/Users/kimhongnyeon/.codex/skills/ui-ux-pro-max/scripts/search.py",
+  "executionMode": "cli-fallback",
+  "runtimeStatus": "missing",
+  "projectRoot": "/Volumes/ External Drive 256G/Dev2/codex/civic-facility-siting-room",
+  "outputDir": "/Volumes/ External Drive 256G/Dev2/codex/civic-facility-siting-room",
+  "query": "elementary civic facility siting classroom decision grid",
+  "projectName": "Civic Facility Siting Room",
+  "command": [
+    "/opt/homebrew/opt/python@3.14/bin/python3.14",
+    "/Users/kimhongnyeon/.codex/skills/ui-ux-pro-max/scripts/search.py",
+    "elementary civic facility siting classroom decision grid",
+    "--design-system",
+    "--persist",
+    "--json",
+    "--project-name",
+    "Civic Facility Siting Room",
+    "--output-dir",
+    "/Volumes/ External Drive 256G/Dev2/codex/civic-facility-siting-room"
+  ],
+  "exitCode": 0,
+  "status": "success",
+  "persistence": {
+    "status": "success",
+    "design_system_dir": "/Volumes/ External Drive 256G/Dev2/codex/civic-facility-siting-room/design-system/civic-facility-siting-room",
+    "master_file": "/Volumes/ External Drive 256G/Dev2/codex/civic-facility-siting-room/design-system/civic-facility-siting-room/MASTER.md",
+    "created_files": [
+      "/Volumes/ External Drive 256G/Dev2/codex/civic-facility-siting-room/design-system/civic-facility-siting-room/MASTER.md"
+    ]
+  },
+  "masterFile": "/Volumes/ External Drive 256G/Dev2/codex/civic-facility-siting-room/design-system/civic-facility-siting-room/MASTER.md",
+  "masterExists": true,
+  "stackSearch": {
+    "command": [
+      "/opt/homebrew/opt/python@3.14/bin/python3.14",
+      "/Users/kimhongnyeon/.codex/skills/ui-ux-pro-max/scripts/search.py",
+      "elementary civic facility siting classroom decision grid",
+      "--stack",
+      "react",
+      "--json"
+    ],
+    "exitCode": 0,
+    "result": {
+      "domain": "stack",
+      "stack": "react",
+      "query": "elementary civic facility siting classroom decision grid",
+      "file": "stacks/react.csv",
+      "count": 0,
+      "results": [],
+      "suggestions": [
+        "splitting",
+        "testing",
+        "using"
+      ]
+    }
+  }
+}
