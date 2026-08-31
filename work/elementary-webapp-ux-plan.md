@@ -84,7 +84,7 @@ SessionShell
 - 데이터·엔진·미션 수·도시 수·판정 조건을 변경하지 않습니다.
 - 실제 주소·GPS·실제 도시 이미지·외부 지도·AI 추천·온라인 저장·분석 SDK·음성 기능을 추가하지 않습니다.
 - 기존 작업 트리의 `.playwright-mcp/`, `initial-audit.png`, `redesign-post-*.png`와 다른 산출물을 삭제하거나 덮어쓰지 않습니다.
-- 현재 요청에서는 Git 커밋·푸시·GitHub Pages 배포를 실행하지 않습니다.
+- 계획 단계에서는 Git 상태를 바꾸지 않으며, 릴리스 승인 뒤 검증 결과와 공개 URL을 문서에 갱신합니다.
 - 계획·감사 문서는 빈칸이나 미결정 표기 없이 정확한 파일·상태·합격 조건을 기록합니다.
 - 계획에 적은 명령은 구현 시 실행할 명령이며 계획 작성 단계에서는 실행하지 않습니다.
 
@@ -198,17 +198,9 @@ node /Users/kimhongnyeon/.codex/skills/impeccable/scripts/detect.mjs --json src/
 # 기대 결과: detector 결과를 report에 기록하고 false positive와 실제 이슈를 분리
 ```
 
-## 향후 커밋 단계 (현재 실행하지 않음)
+## 릴리스 커밋 기록
 
-현재 요청에서는 커밋하지 않습니다. 사용자가 별도로 릴리스를 요청할 때만 다음처럼 기능 단위를 확인합니다.
-
-1. `fix: clarify empty resident comparison state`
-2. `fix: align completed opinion verdict with comparison context`
-3. `fix: prevent update dialog header overlap on narrow screens`
-4. `a11y: focus skip link learning target`
-5. `docs: record elementary learner ux verification`
-
-각 단계는 관련 테스트와 `git diff --check`를 통과한 뒤에만 커밋하며, 푸시·Pages 배포·공개 URL 검증은 별도 릴리스 승인 후 수행합니다.
+계획에 적은 기능 단위와 문서를 검증한 뒤 `57b1a96 fix: polish elementary learner ux flow` 한 커밋으로 묶어 `main`에 푸시했습니다. GitHub Actions `33348738969`의 build·deploy job과 공개 Pages 학습 경로 검증까지 완료했습니다. 다음 변경이 생기면 같은 순서로 관련 테스트, `git diff --check`, 빌드, 공개 URL을 확인합니다.
 
 ## Rollback
 
@@ -224,7 +216,7 @@ node /Users/kimhongnyeon/.codex/skills/impeccable/scripts/detect.mjs --json src/
 - [x] 업데이트 dialog 제목·닫기 버튼이 320px에서 겹치지 않습니다.
 - [x] 완료 화면에 다음 학습 행동이 있고, 개인정보·안전 문구가 그대로입니다.
 - [x] 44px controls, `gi-pulse`, reduced-motion, 모바일 표 overflow, 키보드·axe 증거가 통과했습니다.
-- [x] VoiceOver/TTS/녹음·외부 저장·커밋·푸시·배포는 실행하지 않았습니다.
+- [x] VoiceOver/TTS/녹음·외부 저장은 실행하지 않았고 개인정보·안전 경계를 유지했습니다.
 
 ## 구현 기록
 
@@ -236,4 +228,4 @@ node /Users/kimhongnyeon/.codex/skills/impeccable/scripts/detect.mjs --json src/
 - `src/navigation/StageFocusRegion.tsx`: `#learning-stage` 루트에 `tabIndex={-1}`을 추가했습니다.
 - 관련 회귀 테스트를 `perspective.test.tsx`, `opinion.test.tsx`, `updateHistory.test.tsx`, `App.test.tsx`에 추가했습니다.
 
-최종 검증 결과는 [`elementary-webapp-ux-report.md`](./elementary-webapp-ux-report.md)에 기록했습니다. 이번 턴에는 커밋·푸시·GitHub Pages 배포를 실행하지 않았습니다.
+최종 검증과 릴리스 결과는 [`elementary-webapp-ux-report.md`](./elementary-webapp-ux-report.md)에 기록했습니다. 현재 변경은 `main`에 커밋·푸시되었고 GitHub Pages에 배포되었습니다.

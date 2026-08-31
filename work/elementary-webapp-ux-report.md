@@ -16,7 +16,7 @@
 - `#learning-stage`에 `tabIndex={-1}`을 부여해 건너뛰기 링크의 실제 포커스 대상을 만들었습니다.
 - 2026-08-31 날짜의 어린이용 업데이트 기록을 추가했습니다.
 
-이번 턴에는 소스 변경만 검증했으며 커밋·푸시·GitHub Pages 배포는 실행하지 않았습니다.
+검증 후 커밋 `57b1a96 fix: polish elementary learner ux flow`를 `main`에 푸시했고, GitHub Actions `33348738969`의 build·deploy job 성공을 확인했습니다.
 
 ## 기준선과 개선 장부
 
@@ -118,7 +118,9 @@
 
 코드·문서·자동 검증은 완료했습니다. 실제 수업 전에는 교사 1회 검토, 실제 초등 학습자 관찰, Safari/WebKit 수동 확인을 추가할 수 있습니다. 이 보고서의 관찰만으로 학생 이해도나 수업 효과를 확정하지 않습니다.
 
-현재 변경은 로컬 작업 트리에만 있습니다. 이전에 배포된 Pages 주소는 [https://wbmaker2.github.io/civic-facility-siting-room/](https://wbmaker2.github.io/civic-facility-siting-room/)이지만 이번 개선분은 아직 배포되지 않았습니다. 사용자가 별도로 릴리스를 승인하면 검증된 변경을 보존한 뒤 커밋·푸시·Pages 배포와 공개 학습 경로를 다시 확인해야 합니다.
+현재 변경은 `main`과 공개 Pages에 반영되어 있습니다. [공개 학습 앱](https://wbmaker2.github.io/civic-facility-siting-room/)에서 제목·자산·375px 반응형·A/B 완료 경로·완료 verdict·console `error/warn` 0건을 확인했습니다. Actions 실행은 [33348738969](https://github.com/WBmaker2/civic-facility-siting-room/actions/runs/33348738969)에서 확인할 수 있습니다.
+
+브라우저 로그·스크린샷 임시 산출물(`.playwright-mcp/`, `initial-audit.png`, `redesign-post-*.png`)은 커밋하지 않고 작업 트리에 보존했습니다.
 
 관련 문서:
 
